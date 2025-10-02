@@ -194,10 +194,32 @@ run;
   
 ### 1-5. Create and manipulate SAS date values
 
-개념: SAS는 날짜를 1960-01-01 = 0으로 저장. (앞은 음수, 뒤는 양수)
+#### **[ 개념 ]** 
+* SAS는 날짜를 1960-01-01 = 0으로 저장. (앞은 음수, 뒤는 양수)
+* 시간은 초 단위(datetime 값은 1960-01-01 00:00:00 기준).
+* 날짜 상수 표현
+  * (날짜) '25dec1999'd
+  * (시간) '12:30't
+  * (날짜+시간) '25dec1999:12:30'dt
 
-예제:
+#### **[ 날짜 관련 함수 ]** 
+* TODAY(), DATE()
+    * today_date = today();
 
+* YEAR, MONTH, DAY, QTR
+    * y = year(today())
+    * m = month(today())
+    * d = day(today())
+    * 
+
+
+
+
+
+```commandline
+
+
+```
 data dates;
     today_date = today();             /* 오늘 날짜 */
     bday = '25dec1999'd;              /* 날짜 상수 */
