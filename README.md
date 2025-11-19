@@ -18,9 +18,7 @@ ODS → PDF/RTF/HTML 중 시험에서 묻는 옵션
 
 
 
-# SAS 9.4 Base Programming – Performance Based Exam
-> (부제) SAS 초심자의 공부노트
-
+# SAS BASE 자격시험 대비 공부노트
 
 ## 1. Access and Create Data Structures (20–25%)
 ### 1-1. Create temporary and permanent SAS data sets
@@ -179,7 +177,7 @@ run;
 * MERGE 사용할 때는 반드시 BY 변수 기준으로 정렬해야 함. 
   * 'by 변수;' 없으면 모든 행이 Cartesian Product처럼 붙어버림
 
-* IN= 옵션 자주 출제 (조건부 merge에서 활용).
+* (in= ) 옵션 자주 출제 (조건부 merge에서 활용).
   * if a and b; → inner join 
   * if a; → left join 
   * if b; → right join 
@@ -195,8 +193,8 @@ run;
 ### 1-5. Create and manipulate SAS date values
 
 #### **[ 개념 ]** 
-* SAS는 날짜를 1960-01-01 = 0으로 저장. (앞은 음수, 뒤는 양수)
-* 시간은 초 단위(datetime 값은 1960-01-01 00:00:00 기준).
+* SAS는 날짜를 1960-01-01 = 0으로 저장. (이전은 음수, 이후는 양수)
+* 시간은 초 단위(datetime 값은 1960-01-01 00:00:00 기준)
 * 날짜 상수 표현
   * (날짜) '25dec1999'd
   * (시간) '12:30't
@@ -205,41 +203,56 @@ run;
 #### **[ 날짜 관련 함수 ]** 
 * TODAY(), DATE()
     * today_date = today();
+    * today_date = date();
 
 * YEAR, MONTH, DAY, QTR
-    * y = year(today())
-    * m = month(today())
-    * d = day(today())
-    * 
+    * y = year(today()) - 연도
+    * m = month(today()) - 월
+    * d = day(today()) - 일
+    * q = qtr(today()) - 분기
 
+* INTCK('기준',A,B) : (B-A) 기간 차이 계산
+    * years = intck('year', '25dec1999'd, today())
 
+* INTNX(interval, start, increment, alignment) 
+  * alignment 옵션:
+      * 'b': 구간의 시작일(beginning)
+      * 'e': 구간의 끝(end)
+      * 's': 시작 날짜와 동일한 위치
+      * 'm': 중간(midpoint)
 
-
+* yrdif(start_date, end_date, 'basis')
+  * basis : 연도 계산 기준
+    * 'ACT/ACT' → 실제 일수 기준
+    * '30/360' → 금융권, 1개월=30일 기준
+    * 'ACT/360' → 실제 일수/360 기준
+    * 'ACT/365' → 실제 일수/365 기준
 
 ```commandline
-
-
-```
 data dates;
     today_date = today();             /* 오늘 날짜 */
     bday = '25dec1999'd;              /* 날짜 상수 */
-    years = intck('year', bday, today_date);
-    next_month = intnx('month', today_date, 1, 'b');
+    
+    years = intck('year', bday, today_date);  /* 연도 차이 */
+    months = intck('month', bday, today_date);  /* 월 차이 */
+    days = intck('day', bday, today_date); /* 일수 차이 */
+    
+    next_month = intnx('month', today_date, 1);   /* 다음달 같은 날짜 */
+    next_month_beg = intnx('month', today_date, 1, 'b');   /* 다음달 첫날 */
+    next_month_end = intnx('month', today_date, 1, 'e');   /* 다음달 마지막날 */
+    
+    put today_date= date9.;
+    put next_month= date9. next_month_beg= date9. next_month_end= date9.;
 run;
+```
 
+### 1-6. Control observations and variables
 
-핵심 포인트:
+#### **[ 개념 ]**
+* 원하는 행/열만 골라내기
 
-'ddmmmyyyy'd 형식은 시험 단골.
-
-함수: INTCK, INTNX, YEAR, MONTH, DAY, QTR
-
-1-6. Control observations and variables
-
-개념: 원하는 행/열만 골라내기.
-
-예제:
-
+#### **[ 예제 ]**
+```
 /* 행 선택 */
 data teens;
     set sashelp.class;
@@ -257,21 +270,44 @@ data dropvar;
     drop height weight;
 run;
 
+/* if절 활용 */
+/* - 조건부 삭제*/
+data teens_delete;
+	set sashelp.class;
+	if age < 13 or age > 19 then delete;
+run;
 
-핵심 포인트:
+/* - 조건부 값 변경/계산*/
+data class_mod;
+	set sashelp.class;
+	if age >= 13 and age <=19 then group = 'teen';
+	else group = 'other';
 
-WHERE vs IF: WHERE는 데이터 읽기 전에 필터링, IF는 읽은 후 필터링.
+	if age >= 15 then score = 50+5;
+	else score=50;
+run;
 
-KEEP=, DROP= 옵션은 DATA step / SET / MERGE / PROC 어디서든 사용 가능.
+/* - 조건부 출력 제어*/
+data teens_out boys_out;
+	set sashelp.class;
+	if age >= 13 and age <= 19 then output teens_out;
+	else if sex='남' then output boys_out;
+run;
+```
 
+#### **[ 핵심 포인트 ]** 
 
-2. Manage Data (35–40%)
-2-1. Sort observations in a SAS data set
+* WHERE vs IF: WHERE는 데이터 읽기 전에 필터링, IF는 읽은 후 필터링.
+* KEEP=, DROP= 옵션은 DATA step / SET / MERGE / PROC 어디서든 사용 가능.
 
-개념: 데이터를 특정 변수 기준으로 정렬하거나 중복 제거.
+## 2. Manage Data (35–40%)
 
-예제:
+### 2-1. Sort observations in a SAS data set
+#### **[ 개념 ]**
+* 데이터를 특정 변수 기준으로 정렬하거나 중복 제거
 
+#### **[ 예제 ]**
+```
 /* 오름차순 정렬 */
 proc sort data=sashelp.class out=sorted;
     by age;
@@ -286,24 +322,22 @@ run;
 proc sort data=sashelp.class out=nodup nodupkey;
     by name;
 run;
+```
 
+#### **[ 핵심 포인트 ]** 
 
-핵심 포인트:
+* OUT= 옵션 → 원본 보존하면서 새로운 데이터셋 생성.
+* NODUP vs NODUPKEY:
+  * NODUP: 모든 변수 기준 중복 제거.
+  * NODUPKEY: BY 변수 기준 중복 제거.
 
-OUT= 옵션 → 원본 보존하면서 새로운 데이터셋 생성.
+### 2-2. Conditionally execute SAS statements
 
-NODUP vs NODUPKEY:
+#### **[ 개념 ]**  
+* 조건문으로 데이터 처리 제어
 
-NODUP: 모든 변수 기준 중복 제거.
-
-NODUPKEY: BY 변수 기준 중복 제거.
-
-2-2. Conditionally execute SAS statements
-
-개념: 조건문으로 데이터 처리 제어.
-
-예제:
-
+#### **[ 예제 ]** 
+```
 data flag;
     set sashelp.class;
     if age < 13 then group = "Child";
@@ -313,70 +347,79 @@ run;
 
 /* 여러 줄 실행 → DO-END */
 data result;
-    set sashelp.class;
-    if age < 13 then do;
-        category = "Child";
-        flag = 1;
-    end;
-    else do;
-        category = "Teen or Adult";
-        flag = 0;
-    end;
+	length group $20; * 미리 길이 설정 안하면 not child가 더 길어서 잘림;
+	set sashelp.class;
+	if age < 13 then do;
+		group='child';
+		flag = 0;
+	end;
+	else do;
+		group='not child';
+		flag = 1;
+	end;
 run;
+```
 
+#### **[ 핵심 포인트 ]** 
 
-핵심 포인트:
+* IF-THEN/ELSE 기본 제어문.
+* DO ... END; 블록 안에 여러 문장 실행 가능.
 
-IF-THEN/ELSE 기본 제어문.
+### 2-3. Use assignment statements in the DATA step
 
-DO ... END; 블록 안에 여러 문장 실행 가능.
+#### **[ 개념 ]**  
+* 변수 생성/갱신
 
-2-3. Use assignment statements in the DATA step
-
-개념: 변수 생성/갱신.
-
-예제:
-
+#### **[ 예제 ]** 
+```
 data assign;
     set sashelp.class;
     bmi = (weight / (height*height)) * 703;   /* 새로운 변수 생성 */
     age = age + 1;                            /* 기존 변수 값 갱신 */
     start_date = '01jan2025'd;                /* 날짜 상수 */
+    format start_date date9.;
 run;
+```
 
+#### **[ 핵심 포인트 ]** 
 
-핵심 포인트:
+* = 연산자로 새로운 변수 만들거나 기존 값 수정 가능.
+* 상수 날짜는 'ddmmmyyyy'd 형태.
 
-= 연산자로 새로운 변수 만들거나 기존 값 수정 가능.
+### 2-4. Modify variable attributes
 
-상수 날짜는 'ddmmmyyyy'd 형태.
+#### **[ 개념 ]**  
+* 변수 이름, 길이, 라벨, 포맷 변경.
 
-2-4. Modify variable attributes
-
-개념: 변수 이름, 길이, 라벨, 포맷 변경.
-
-예제:
-
+#### **[ 예제 ]** 
+```
 data modify;
-    set sashelp.class (rename=(name=student_name));
+    set sashelp.class (rename=(name=student_name));    /* 변수명 변경 */
     length newvar $20;            /* 문자 길이 지정 */
     label age="Student Age";      /* 변수 설명 추가 */
     format height 5.2;            /* 소수점 형식 */
 run;
+```
 
+#### **[ 핵심 포인트 ]** 
+* RENAME=, LENGTH, LABEL, FORMAT 시험 단골
+* LENGTH는 문자열 변수 값 입력 전에 선언해야 적용됨
+* FORMAT(출력형식) : 숫자에서 중요함. 문자열은 FORMAT 보단 LENGTH 중요
+    * COMMAw.d: 천 단위 콤마
+    * DOLLARw.d: $ + 콤마
+    * PERCENTw.d: 100배하고 % 표시
+    * BESTw.: 가장 깔끔한 숫자 자동 선택
+    * Z w.: 앞자리 0 채우기
+    * w.d: 기본 숫자 포맷 (콤마 없음)
+    * 날짜는 숫자 → format 필수 (date9./ datetime19. / mmddyy10. / yymmdd10. / ddmmyy10.)
 
-핵심 포인트:
+### 2-5. Accumulate sub-totals and totals
 
-RENAME=, LENGTH, LABEL, FORMAT 시험 단골.
+#### **[ 개념 ]**  
+* 그룹별 집계
 
-LENGTH는 변수 값 입력 전에 선언해야 적용됨.
-
-2-5. Accumulate sub-totals and totals
-
-개념: 그룹별 집계.
-
-예제:
-
+#### **[ 예제 ]** 
+```
 proc sort data=sashelp.class out=class;
     by sex;
 run;
@@ -391,9 +434,9 @@ data totals;
         total_wt = 0;           /* 다음 그룹 위해 초기화 */
     end;
 run;
+```
 
-
-핵심 포인트:
+#### **[ 핵심 포인트 ]** 
 
 BY문 + FIRST./LAST. 변수 활용.
 
@@ -433,7 +476,7 @@ data date_fn;
 run;
 
 
-핵심 포인트:
+#### **[ 핵심 포인트 ]** 
 
 문자: SCAN, SUBSTR, TRIM, COMPRESS, UPCASE, LOWCASE
 
@@ -443,9 +486,9 @@ run;
 
 2-7. Convert character ↔ numeric
 
-개념: INPUT(문자→숫자), PUT(숫자→문자).
+#### **[ 개념 ]**  INPUT(문자→숫자), PUT(숫자→문자).
 
-예제:
+#### **[ 예제 ]** 
 
 data convert;
     char_num = "123";
@@ -456,13 +499,13 @@ data convert;
 run;
 
 
-핵심 포인트:
+#### **[ 핵심 포인트 ]** 
 
 SAS는 자동 변환을 하기도 하지만 시험에서는 명시적 변환 중요.
 
 2-8. Process data using DO loops
 
-예제:
+#### **[ 예제 ]** 
 
 /* 반복 DO */
 data loop_ex;
@@ -482,7 +525,7 @@ data loop_cond;
 run;
 
 
-핵심 포인트:
+#### **[ 핵심 포인트 ]** 
 
 DO i = 1 to n; → 반복 loop.
 
@@ -490,9 +533,9 @@ DO WHILE(condition); / DO UNTIL(condition); 시험 출제.
 
 2-9. Restructure with PROC TRANSPOSE
 
-개념: Wide ↔ Long 변환.
+#### **[ 개념 ]**  Wide ↔ Long 변환.
 
-예제:
+#### **[ 예제 ]** 
 
 proc transpose data=sashelp.class out=transposed prefix=col;
     var height weight;
@@ -500,7 +543,7 @@ proc transpose data=sashelp.class out=transposed prefix=col;
 run;
 
 
-핵심 포인트:
+#### **[ 핵심 포인트 ]** 
 
 VAR: 변환할 변수.
 
@@ -510,9 +553,9 @@ PREFIX=: 자동 생성되는 변수명 접두사.
 
 2-10. Macro variables
 
-개념: 코드 재사용성 향상.
+#### **[ 개념 ]**  코드 재사용성 향상.
 
-예제:
+#### **[ 예제 ]** 
 
 %let year = 2025;
 
@@ -522,13 +565,13 @@ data sales&year;
 run;
 
 
-핵심 포인트:
+#### **[ 핵심 포인트 ]** 
 
 %LET으로 매크로 변수 정의.
 
 호출 시 &변수명. → . 붙이면 다른 문자와 구분 가능.
 
-📘 Part 3 – Error Handling (15–20%)
+## Part 3 – Error Handling (15–20%)
 🎯 학습 목표
 
 프로그래밍 논리 오류 파악 및 해결
@@ -652,7 +695,7 @@ run;
 특히 자동 형 변환, 세미콜론 빠짐, 잘못된 옵션 문제 자주 나옴.
 
 
-📘 Part 4 – Generate Reports and Output (15–20%)
+## Part 4 – Generate Reports and Output (15–20%)
 🎯 학습 목표
 
 PROC PRINT, PROC FREQ, PROC MEANS, PROC UNIVARIATE 활용
