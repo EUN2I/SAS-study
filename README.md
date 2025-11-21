@@ -466,10 +466,7 @@ run;
 ### 2-6. Use SAS functions
 
 #### **[ 문자 함수 ]**
-```commandline
-data char_fn;
-    str = " Hello, SAS! ";
-    up = 
+
 ```
 data char_fn;
     str = " Hello, SAS! ";
@@ -477,12 +474,20 @@ data char_fn;
     low = lowcase(str);
     no_space = trim(left(str));
     part = substr(str, 1, 5);
-    cleaned = compress(str, ',!');
+    cleaned = compress(str, ',!'); 
+      * -> 구분자 없이 ' '안에 없애고 싶은 문자 다 넣으면 됨;
 run;
+```
 
-
-숫자 함수:
-
+#### **[ 숫자 함수 ]**
+```commandline
+data num_fn;
+    x = 10.7;
+    rounded = round(x, 1);
+    intpart = int(x);
+    random = rand("uniform");
+run;
+```
 data num_fn;
     x = 10.7;
     rounded = round(x, 1);
