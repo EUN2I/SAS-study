@@ -421,31 +421,56 @@ run;
 #### **[ 예제 ]** 
 ```
 proc sort data=sashelp.class out=class;
-    by sex;
+	by sex;
 run;
 
-data totals;
-    set class;
-    by sex;
-    retain total_wt 0;
-    total_wt + weight;          /* 누적합 */
-    if last.sex then do;
-        output;
-        total_wt = 0;           /* 다음 그룹 위해 초기화 */
-    end;
+data totals1;
+	set class;
+
+	/* data문 안에서의 by절 - 우선 먼저 proc sort로 정렬 먼저 해야 사용 가능
+	: SAS에게 성별 그룹별 처리하겠다고 알림
+	: 이제 SAS는 각 성별 그룹의 첫 번째(first.sex), 마지막(last.sex) 관측치를 인식할 수 있음 */
+	by sex;
+	/* retain : DATA step이 반복되면서 변수가 초기화되지 않고 값을 유지하도록 함
+					일반 변수는 DATA step 반복마다 값이 초기화됨*/
+	retain total_wt 0;
+	total_wt + weight; /* 누적합 */
+	if first.sex then do;
+		total_wt=weight; end;
 run;
+
+data totals2;
+	set class;
+
+	/* data문 안에서의 by절 - 우선 먼저 proc sort로 정렬 먼저 해야 사용 가능
+	: SAS에게 성별 그룹별 처리하겠다고 알림
+	: 이제 SAS는 각 성별 그룹의 첫 번째(first.sex), 마지막(last.sex) 관측치를 인식할 수 있음 */
+	by sex;
+	/* retain : DATA step이 반복되면서 변수가 초기화되지 않고 값을 유지하도록 함
+					일반 변수는 DATA step 반복마다 값이 초기화됨*/
+	retain total_wt 0;
+	total_wt + weight; /* 누적합 */
+	if last.sex then do;
+		output; * 그 시점까지 누적된 합계를 데이터셋에 저장 -> 그룹별 마지막 사람 행만 남음;
+		total_wt=0;
+		end;
+run;
+
 ```
 
 #### **[ 핵심 포인트 ]** 
 
-BY문 + FIRST./LAST. 변수 활용.
+* BY문 + FIRST./LAST. 변수 활용.
+* RETAIN + 누적 변수(+) 조합 시험에 자주 나옴.
 
-RETAIN + 누적 변수(+) 조합 시험에 자주 나옴.
+### 2-6. Use SAS functions
 
-2-6. Use SAS functions
-
-문자 함수:
-
+#### **[ 문자 함수 ]**
+```commandline
+data char_fn;
+    str = " Hello, SAS! ";
+    up = 
+```
 data char_fn;
     str = " Hello, SAS! ";
     up = upcase(str);
