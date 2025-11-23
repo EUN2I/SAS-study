@@ -488,23 +488,16 @@ data num_fn;
     random = rand("uniform");
 run;
 ```
-data num_fn;
-    x = 10.7;
-    rounded = round(x, 1);
-    intpart = int(x);
-    random = rand("uniform");
-run;
 
-
-날짜 함수:
-
+#### **[ 날짜 함수 ]** 
+```
 data date_fn;
     today_d = today();
     year_v = year(today_d);
     next_qtr = intnx("qtr", today_d, 1);
     years_passed = intck("year", '01jan2000'd, today_d);
 run;
-
+```
 
 #### **[ 핵심 포인트 ]** 
 
