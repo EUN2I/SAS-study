@@ -502,7 +502,6 @@ data char_fn;
 	dom = scan(email, 2, '@');
 
 run;
-
 ```
 
 #### **[ 숫자 함수 ]**
@@ -560,34 +559,34 @@ run;
 #### **[ 핵심 포인트 ]** 
 
 * 문자: SCAN, SUBSTR, TRIM, COMPRESS, UPCASE, LOWCASE
-* 숫자: SUM, MEAN, ROUND, INT, RAND
-* 날짜: MDY, TODAY, YEAR, MONTH, DAY, INTCK, INTNX, YRDIF
+* 숫자: SUM, MEAN, ROUND, INT, RAND, SMALLEST, LARGEST, ROUND
+* 날짜: MDY, TODAY, YEAR, QTR, MONTH, DAY, INTCK, INTNX, YRDIF, DATE, TIME
 
 ### 2-7. Convert character ↔ numeric
 
 #### **[ 개념 ]**  
-* INPUT(문자→숫자)
-* PUT(숫자→문자)
+* INPUT(문자→숫자) : input(char_var, format.)
+* PUT(숫자→문자) : put(num_var, format.)
 
 #### **[ 예제 ]** 
 ```
 data convert;
     char_num = "123";
-    real_num = input(char_num, 8.);     /* 문자 → 숫자 */
+    real_num = input(char_num, 8.);     /* 문자 → 숫자(8자리, 정수형) */
 
     num_val = 2025;
-    str_val = put(num_val, 4.);         /* 숫자 → 문자 */
+    str_val = put(num_val, 4.);         /* 숫자 → 문자(길이를 정해줌) */
 run;
 ```
 
-#### **[ 핵심 포인트 ]** 
-
-SAS는 자동 변환을 하기도 하지만 시험에서는 명시적 변환 중요.
-
 ### 2-8. Process data using DO loops
 
-#### **[ 예제 ]** 
+#### **[ 개념 ]**  
+* DO i = 1 to n; → 반복 loop.
+* DO WHILE(condition); / DO UNTIL(condition); 시험 출제.
 
+#### **[ 예제 ]** 
+```
 /* 반복 DO */
 data loop_ex;
     do i = 1 to 5;
@@ -604,13 +603,7 @@ data loop_cond;
         output;
     end;
 run;
-
-
-#### **[ 핵심 포인트 ]** 
-
-DO i = 1 to n; → 반복 loop.
-
-DO WHILE(condition); / DO UNTIL(condition); 시험 출제.
+```
 
 ### 2-9. Restructure with PROC TRANSPOSE
 
