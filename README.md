@@ -469,8 +469,6 @@ run;
 #### **[ 문자 함수 ]**
 
 ```
-
-
 data char_fn;
     str = "   Hello, SAS!   "; * 데이터 상에서 뒷자리 공백은 보이지 않음;
 /* translate(str, 'a', 'b') -> str의 포함 문자 중 b를 a로 수정 */
