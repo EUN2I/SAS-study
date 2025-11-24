@@ -482,29 +482,25 @@ run;
 #### **[ 숫자 함수 ]**
 ```commandline
 data num_fn;
-    x = 10.7;
-    rounded = round(x, 1);
-    intpart = int(x);
-    random = rand("uniform");
+	x = 10.7;
+	rounded = round(x, 1);
+	intpart = int(x);
+	random_uni = rand("uniform"); * 기본 균등분포 (0 ~ 1);
+	random_normal = rand("normal", 0, 1); * 정규분포 (평균=0, 표준편차=1);
+	random_binom = rand("binomial", 0.3, 10); * 이항분포 (n=10, p=0.3);
+	random_pois = rand("poisson", 5); * 포아송분포(λ=5);
+	random_range = 1 + rand("uniform") * 99; * 범위 지정 랜덤 숫자 (예: 1~100);
 run;
 ```
-data num_fn;
-    x = 10.7;
-    rounded = round(x, 1);
-    intpart = int(x);
-    random = rand("uniform");
-run;
-
-
-날짜 함수:
-
+#### **[ 날짜 함수 ]**
+```
 data date_fn;
     today_d = today();
     year_v = year(today_d);
     next_qtr = intnx("qtr", today_d, 1);
     years_passed = intck("year", '01jan2000'd, today_d);
 run;
-
+```
 
 #### **[ 핵심 포인트 ]** 
 
