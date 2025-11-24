@@ -507,7 +507,7 @@ run;
 #### **[ 숫자 함수 ]**
 ```commandline
 data num_fn;
-	x = 10.7;
+	x = 10.756;
 	rounded = round(x, 1);
 	intpart = int(x);
 	random_uni = rand("uniform"); * 기본 균등분포 (0 ~ 1);
