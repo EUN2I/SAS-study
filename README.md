@@ -237,12 +237,13 @@ data dates;
     months = intck('month', bday, today_date);  /* 월 차이 */
     days = intck('day', bday, today_date); /* 일수 차이 */
     
-    next_month = intnx('month', today_date, 1);   /* 다음달 같은 날짜 */
-    next_month_beg = intnx('month', today_date, 1, 'b');   /* 다음달 첫날 */
+    next_month_same = intnx('month', today_date, 1, 'same');   /* 다음달 같은 날짜 */
+    next_month_beg = intnx('month', today_date, 1, 'b');   /* 다음달 첫날 -> 기본값 */
     next_month_end = intnx('month', today_date, 1, 'e');   /* 다음달 마지막날 */
+    next_month_mid = intnx('month', today_date, 1, 'middle');   /* 다음달 중간날짜 -> 31일 있는 달이면 16일 */
     
     put today_date= date9.;
-    put next_month= date9. next_month_beg= date9. next_month_end= date9.;
+    put next_month_same = date9. next_month_beg= date9. next_month_end= date9. next_month_mid= date9.;
 run;
 ```
 
@@ -468,15 +469,42 @@ run;
 #### **[ 문자 함수 ]**
 
 ```
+
+
 data char_fn;
-    str = " Hello, SAS! ";
-    up = upcase(str);
-    low = lowcase(str);
-    no_space = trim(left(str));
-    part = substr(str, 1, 5);
-    cleaned = compress(str, ',!'); 
-      * -> 구분자 없이 ' '안에 없애고 싶은 문자 다 넣으면 됨;
+    str = "   Hello, SAS!   "; * 데이터 상에서 뒷자리 공백은 보이지 않음;
+/* translate(str, 'a', 'b') -> str의 포함 문자 중 b를 a로 수정 */
+	tran_str = translate(str, '_', ' '); 
+/* upcase(str) -> 모두 대문자로 변경 */
+    up = translate(upcase(str),'_',' ');
+/* lowcase(str) -> 모두 소문자로 변경 */
+    low =  translate(lowcase(str),'_',' ');
+/* left(str) -> 앞공백을 뒤로 몰아넣기 */
+	left = translate(left(str),'_',' ');
+/* trim(str) -> 뒷공백 제거(앞공백 유지) */
+	trim = translate(trim(str),'_',' ');
+	no_space = translate(trim(left(str)),'_',' ');
+/* strip(str) -> 앞뒤 모든 공백 제거(중간 공백은 그대로) */	
+	strip = translate(strip(str),'_',' ');
+/* substr(str, n, m) -> 문자열에서 n번째 문자부터 m개 추출(공백도 카운트) */	
+    part63 = substr(str, 6, 3);
+    part63_no_space = substr(no_space, 6, 3);
+
+/* compress(str, 'abc') -> 문자열에서 a와 b와 c 제거 -> 구분자 없이 ' '안에 없애고 싶은 문자 다 넣으면 됨 */
+    cleaned = translate(compress(str, ',!'),'_',' ');
+
+/* scan(string, n, delimiters) -> n : n번째 문자열 가져옴(-1은 마지막문자열), delimiters : 구분자(생략하면 개수 상관없이 공백) */
+
+	str2 = "Apple  Banana Orange";
+	x = scan(str2, 2); * Banana;
+	y = scan(str2, -1); * Orange;
+
+	email = "user@example.com";
+	id  = scan(email, 1, '@');
+	dom = scan(email, 2, '@');
+
 run;
+
 ```
 
 #### **[ 숫자 함수 ]**
@@ -495,27 +523,56 @@ run;
 #### **[ 날짜 함수 ]**
 ```
 data date_fn;
-    today_d = today();
-    year_v = year(today_d);
-    next_qtr = intnx("qtr", today_d, 1);
-    years_passed = intck("year", '01jan2000'd, today_d);
+	today_d = today();
+	year_v = year(today_d);
+
+/* intcx("qtr/month/year/day", start_date, end_date) */   
+    years = intck('year', bday, today_date);  /* 연도 차이 */
+    months = intck('month', bday, today_date);  /* 월 차이 */
+    days = intck('day', bday, today_date); /* 일수 차이 */
+   
+/* intnx("qtr/month/year/day", start_date, n, 'b/e/same/middle') */   
+    next_month_same = intnx('month', today_date, 1, 'same');   /* 다음달 같은 날짜 */
+    next_month_beg = intnx('month', today_date, 1, 'b');   /* 다음달 첫날 -> 기본값 */
+    next_month_end = intnx('month', today_date, 1, 'e');   /* 다음달 마지막날 */
+    next_month_mid = intnx('month', today_date, 1, 'middle');   /* 다음달 중간날짜 -> 31일 있는 달이면 16일 */
+	years_passed = intck("year", '01jan2000'd, today_d);
+	
+	format today_d next_qtr next_month date9.;
+
+/* mdy(month, day, year) -> 월/일/연도로 SAS 날짜 만들기 */
+	d = mdy(11, 24, 2025);
+	format d date9.;
+	put d; /* 출력: 24NOV2025 */
+
+/* yrdif(start_date, end_date, 'basis') -> 두 날짜 사이 연수 차이 계산(나이 계산시 중요)
+    '30/360' - 매달 30일 기준
+    'ACT/360' - 실제일수/360
+	'ACT/365' - 실제일수/365
+	'ACT/ACT' - 실제일수/실제연도일수 */
+	dob = '29feb1992'd;
+	today = '28feb2025'd;
+	age_basic = yrdif(dob, today); * 33.0;
+	age_act365 = yrdif(dob, today, 'ACT/365'); * 33.021917808;
+	age_actact = yrdif(dob, today, 'ACT/ACT'); * 32.997701924;   
+	
 run;
 ```
 
 #### **[ 핵심 포인트 ]** 
 
-문자: SCAN, SUBSTR, TRIM, COMPRESS, UPCASE, LOWCASE
+* 문자: SCAN, SUBSTR, TRIM, COMPRESS, UPCASE, LOWCASE
+* 숫자: SUM, MEAN, ROUND, INT, RAND
+* 날짜: MDY, TODAY, YEAR, MONTH, DAY, INTCK, INTNX, YRDIF
 
-숫자: SUM, MEAN, ROUND, INT, RAND
+### 2-7. Convert character ↔ numeric
 
-날짜: MDY, TODAY, YEAR, MONTH, DAY, INTCK, INTNX, YRDIF
-
-2-7. Convert character ↔ numeric
-
-#### **[ 개념 ]**  INPUT(문자→숫자), PUT(숫자→문자).
+#### **[ 개념 ]**  
+* INPUT(문자→숫자)
+* PUT(숫자→문자)
 
 #### **[ 예제 ]** 
-
+```
 data convert;
     char_num = "123";
     real_num = input(char_num, 8.);     /* 문자 → 숫자 */
@@ -523,13 +580,13 @@ data convert;
     num_val = 2025;
     str_val = put(num_val, 4.);         /* 숫자 → 문자 */
 run;
-
+```
 
 #### **[ 핵심 포인트 ]** 
 
 SAS는 자동 변환을 하기도 하지만 시험에서는 명시적 변환 중요.
 
-2-8. Process data using DO loops
+### 2-8. Process data using DO loops
 
 #### **[ 예제 ]** 
 
@@ -557,7 +614,7 @@ DO i = 1 to n; → 반복 loop.
 
 DO WHILE(condition); / DO UNTIL(condition); 시험 출제.
 
-2-9. Restructure with PROC TRANSPOSE
+### 2-9. Restructure with PROC TRANSPOSE
 
 #### **[ 개념 ]**  Wide ↔ Long 변환.
 
@@ -577,7 +634,7 @@ ID: 컬럼 이름으로 바꿀 변수.
 
 PREFIX=: 자동 생성되는 변수명 접두사.
 
-2-10. Macro variables
+### 2-10. Macro variables
 
 #### **[ 개념 ]**  코드 재사용성 향상.
 
@@ -606,7 +663,7 @@ run;
 
 SAS 로그 활용 능력
 
-1. Identify and Resolve Programming Logic Errors
+### 3-1. Identify and Resolve Programming Logic Errors
 
 PUTLOG Statement
 
@@ -639,7 +696,7 @@ data test;
   if _N_ <= 5 then putlog _all_;
 run;
 
-2. Recognize and Correct Syntax Errors
+### 3-2. Recognize and Correct Syntax Errors
 
 SAS 문법 기본 규칙
 
@@ -667,7 +724,7 @@ run;
 👉 로그에 ERROR 180-322: Statement is not valid or it is used out of proper order.
 → data 문 끝에 세미콜론 빠짐
 
-3. Debugging with the Log
+### 3-3. Debugging with the Log
 
 NOTE / WARNING / ERROR 메시지 해석 연습 필수
 
@@ -732,7 +789,7 @@ ODS (Output Delivery System) 활용해서 PDF/Excel/HTML 출력
 
 데이터 Export
 
-1. Generate List Reports (PROC PRINT)
+### 4-1. Generate List Reports (PROC PRINT)
 
 기본 문법
 
@@ -757,7 +814,7 @@ NOOBS: 관측치 번호 제거
 
 LABEL: 변수 라벨 사용
 
-2. Generate Summary Reports (PROC FREQ, PROC MEANS, PROC UNIVARIATE)
+### 4-2. Generate Summary Reports (PROC FREQ, PROC MEANS, PROC UNIVARIATE)
 
 PROC FREQ
 
@@ -791,7 +848,7 @@ run;
 
 이상치, 분포, 누락값 확인
 
-3. Enhance Reports
+### 4-3. Enhance Reports
 
 사용자 정의 포맷 (PROC FORMAT)
 
@@ -816,7 +873,7 @@ proc print data=sashelp.class label;
   label height="키(cm)" weight="몸무게(kg)";
 run;
 
-4. ODS (Output Delivery System)
+### 4-4. ODS (Output Delivery System)
 
 출력 형식 지정
 
@@ -842,7 +899,7 @@ CSV
 
 👉 STYLE= 옵션으로 테마 변경 가능
 
-5. Export Data
+### 4-5. Export Data
 
 PROC EXPORT
 
