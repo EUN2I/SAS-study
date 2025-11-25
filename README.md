@@ -627,8 +627,8 @@ run;
 ### 2-8. Process data using DO loops
 
 #### **[ 개념 ]**  
-* DO i = 1 to n; → 반복 loop.
-* DO WHILE(condition); / DO UNTIL(condition); 시험 출제.
+* DO i = 1 to n; END; → 반복 loop.
+* DO WHILE(condition); END; / DO UNTIL(condition); END;
 
 #### **[ 예제 ]** 
 ```
@@ -640,35 +640,42 @@ data loop_ex;
     end;
 run;
 
-/* 조건부 DO */
-data loop_cond;
+/* DO WHILE(조건부 DO) */
+data loop_while;
     x = 1;
     do while (x < 100);
         x + 10;
         output;
     end;
 run;
+
+/* DO UNTIL(조건부 DO) */
+data loop_until;
+  x = 1;
+  do until (x<100);
+    x+10;
+    output;
+  end;
+run;  
 ```
 
 ### 2-9. Restructure with PROC TRANSPOSE
 
-#### **[ 개념 ]**  Wide ↔ Long 변환.
+#### **[ 개념 ]**  
+* Wide ↔ Long 변환
 
 #### **[ 예제 ]** 
-
-proc transpose data=sashelp.class out=transposed prefix=col;
+```
+proc transpose data=sashelp.class out=transposed prefix=col; 
     var height weight;
-    id name;
+    id name; 
 run;
-
+```
 
 #### **[ 핵심 포인트 ]** 
-
-VAR: 변환할 변수.
-
-ID: 컬럼 이름으로 바꿀 변수.
-
-PREFIX=: 자동 생성되는 변수명 접두사.
+* PREFIX=: 자동 생성되는 변수명 접두사
+* VAR: 변환할 변수
+* ID: 컬럼 이름으로 바꿀 변수
 
 ### 2-10. Macro variables
 
