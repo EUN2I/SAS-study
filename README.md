@@ -507,14 +507,40 @@ run;
 #### **[ 숫자 함수 ]**
 ```commandline
 data num_fn;
-	x = 10.756;
-	rounded = round(x, 1);
+	x = 135.756;
+/* 
+반올림 : round(x, 0.1) 
+올림 : ceil(x) -> 단일 인자
+내림 : floor(x) -> 단일 인자
+*/
+	round_10 = round(x, 10);
+	round_1 = round(x, 1);
+	round_01 = round(x, 0.1);
+
+	ceil_ex = ceil(-3.5); * -3;
+	floor_ex = floor(-3.5); * -4;
+
+/* 정수형 : int */
 	intpart = int(x);
+
+/* 난수생성 : rand("분포", ~) */
 	random_uni = rand("uniform"); * 기본 균등분포 (0 ~ 1);
 	random_normal = rand("normal", 0, 1); * 정규분포 (평균=0, 표준편차=1);
 	random_binom = rand("binomial", 0.3, 10); * 이항분포 (n=10, p=0.3);
 	random_pois = rand("poisson", 5); * 포아송분포(λ=5);
 	random_range = 1 + rand("uniform") * 99; * 범위 지정 랜덤 숫자 (예: 1~100);
+
+/* 크기 비교 : smallest(n, of a b c) : a b c 중 n번째로 큰 값 / largest(n, of x1-x3) : x1 x2 x3 중 n번째로 큰 값 */
+	x1 = 2;
+	x2 = 5;
+	x3 = 1;
+	a = 6;
+	b = 3;
+	c = 10;
+	
+	s = smallest(1, of a b c);
+	l = largest(2, of x1-x3);
+	
 run;
 ```
 #### **[ 날짜 함수 ]**
