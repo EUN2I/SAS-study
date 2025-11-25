@@ -628,83 +628,128 @@ run;
 
 #### **[ 개념 ]**  
 * DO i = 1 to n; END; → 반복 loop.
-* DO WHILE(condition); END; / DO UNTIL(condition); END;
+* DO WHILE(condition); END; : TRUE이면 일해라 -> 최초 1회 실행 보장하지 않음
+* DO UNTIL(condition); END; : 일단 시작하고 TRUE면 그만해 -> 최초 1회 실행 무조건
 
 #### **[ 예제 ]** 
 ```
-/* 반복 DO */
 data loop_ex;
-    do i = 1 to 5;
-        square = i**2;
-        output;
-    end;
+	do i=1 to 10;
+		square = i*i;
+		output;
+	end;
 run;
 
-/* DO WHILE(조건부 DO) */
-data loop_while;
-    x = 1;
-    do while (x < 100);
-        x + 10;
-        output;
-    end;
+data loop_ex2;
+	i = 1;
+	do while(i<10); * i가 1부터 9일때까지 돌아감;
+		square = i*i;
+		output;
+		i = i + 1; * 순서 중요 : output 전에 i가 들어가면 첫행에 square은 1, i는 2 이렇게 찍힘;
+	end;
 run;
 
-/* DO UNTIL(조건부 DO) */
-data loop_until;
-  x = 1;
-  do until (x<100);
-    x+10;
-    output;
-  end;
-run;  
+data loop_ex3;
+	i = 1;
+	do until(i>10); * i가 1부터 10일때까지 돌아감;
+		square = i*i;
+		output;
+		i = i + 1;
+	end;
+run;
+
+/* SAS의 DO UNTIL 반복문은 루프 내부의 문장이 실행된 후에 조건을 루프의 마지막에서 확인하기 때문에, 최소한 한 번은 실행된다 */
+data loop_ex4;
+	i = 1;
+					/* i는 10보다 작기 때문에 조건은 TRUE여서 반복문 종료이지만, 
+					until은 조건을 마지막에 확인해서 반복문이 최초 1회는 실행되어야함*/
+	do until(i<10);
+		square = i*i;
+		i = i + 1;
+		output;
+	end;
+run;
 ```
 
 ### 2-9. Restructure with PROC TRANSPOSE
 
 #### **[ 개념 ]**  
-* Wide ↔ Long 변환
+* Wide ↔ Long 변환 : 행과 열의 변환
+
+#### **[ 핵심 포인트 ]** 
+* ID → 열 이름 생성: ID 변수는 반드시 고유값(unique)이 있어야 깔끔하게 나옴(고유값이 아니면 같은 칼럼명 충돌)
+* VAR → 회전할 값 선택: 여러 개 VAR 지정하면 행이 여러 줄로 생성
+* NAME 자동 생성: 원래 VAR 변수명이 자동으로 _NAME_에 들어감
+* BY 문 사용 가능: 그룹별로 transpose 가능(단, 미리 PROC SORT 필요)
+* Wide → Long은 proc transpose 1번
+* Long → Wide는 id group 등을 적절히 이용해 해결 가능
 
 #### **[ 예제 ]** 
 ```
-proc transpose data=sashelp.class out=transposed prefix=col; 
+/* LONG -> WIDE 버전 */
+
+proc sort data=sashelp.class out=class; by sex; run;
+proc transpose data=class out=transposed prefix=col_ _NAME_=; 
+	by sex;
     var height weight;
     id name; 
 run;
-```
 
-#### **[ 핵심 포인트 ]** 
-* PREFIX=: 자동 생성되는 변수명 접두사
-* VAR: 변환할 변수
-* ID: 컬럼 이름으로 바꿀 변수
+/* WIDE -> LONG 버전 */
+
+proc sort data=sashelp.class out=class; by name sex age; run;
+proc transpose data=class out=class_trans(rename=(_NAME_=hw)) prefix=var; 
+	by name sex age; 
+	var height weight; 
+run;
+
+```
 
 ### 2-10. Macro variables
 
-#### **[ 개념 ]**  코드 재사용성 향상.
+#### **[ 개념 ]** 
+* 코드 재사용성 향상
+
+#### **[ 핵심 포인트 ]** 
+* %LET으로 매크로 변수 정의
+* 호출 시 &변수명. → . 붙이면 다른 문자와 구분 가능
+  * " " (큰따옴표) → 매크로 변수 &var. 치환됨
+  * ' ' (작은따옴표) → 매크로 변수 그대로 문자 &var.로 인식됨
+* 매크로 관련 옵션
+  * MPRINT	: 매크로가 실행될 때, 치환된 실제 SAS 코드를 로그에 보여줌
+  * SYMBOLGEN : 매크로 변수(&var)가 어떤 값으로 치환되는지 로그에 표시
+  * MLOGIC : 매크로 로직(조건문, %IF/%DO 등)의 흐름을 로그에 표시 
 
 #### **[ 예제 ]** 
 
-%let year = 2025;
+```
+option mprint symbolgen mlogic;
 
-data sales&year;
-    set sales_data;
-    if year = &year;
+/* 방법1 : 매크로변수 설정 + data스텝 이용 -> symbolgen 작동 */
+%let gender = M;
+
+data class_&gender.;
+    set sashelp.class;
+    if sex = '&gender.';
 run;
 
+/* 방법2 : 매크로코드 이용 -> mprint, symbolgen 작동 */
+%macro filter_class(gender);
+    data class_&gender.;
+        set sashelp.class;
+        if sex = "&gender.";
+    run;
+%mend;
 
-#### **[ 핵심 포인트 ]** 
+%filter_class(M);
+```
 
-%LET으로 매크로 변수 정의.
-
-호출 시 &변수명. → . 붙이면 다른 문자와 구분 가능.
 
 ## Part 3 – Error Handling (15–20%)
 🎯 학습 목표
-
-프로그래밍 논리 오류 파악 및 해결
-
-문법 오류 식별 및 수정
-
-SAS 로그 활용 능력
+* 프로그래밍 논리 오류 파악 및 해결
+* 문법 오류 식별 및 수정
+* SAS 로그 활용 능력
 
 ### 3-1. Identify and Resolve Programming Logic Errors
 
@@ -823,14 +868,10 @@ run;
 
 ## Part 4 – Generate Reports and Output (15–20%)
 🎯 학습 목표
-
-PROC PRINT, PROC FREQ, PROC MEANS, PROC UNIVARIATE 활용
-
-라벨, 포맷, 타이틀, 푸터 등 보고서 꾸미기
-
-ODS (Output Delivery System) 활용해서 PDF/Excel/HTML 출력
-
-데이터 Export
+* PROC PRINT, PROC FREQ, PROC MEANS, PROC UNIVARIATE 활용
+* 라벨, 포맷, 타이틀, 푸터 등 보고서 꾸미기
+* ODS (Output Delivery System) 활용해서 PDF/Excel/HTML 출력
+* 데이터 Export
 
 ### 4-1. Generate List Reports (PROC PRINT)
 
