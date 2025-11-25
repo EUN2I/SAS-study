@@ -520,11 +520,36 @@ run;
 #### **[ 날짜 함수 ]**
 ```
 data date_fn;
-	today_d = today();
-	year_v = year(today_d);
 
+/* 기본 날짜 함수
+오늘 날짜 : today(), date() -> format date9.
+현재 시간 : time() -> format time8.
+현재 날짜 + 시간 : datetime() -> format datetime20. 
+요일(1=일 ~ 7=토) : weekday(date)
+연월일 추출 : year(date), month(date), day(date)
+날짜 생성 : mdy(m,d,y)
+시간 생성 : hms(h,m,s)
+*/
+
+	today_date = today();
+	today_date2 = date();
+	now = datetime();
+	only_time = time();
+	year_v = year(today_date);
+	
+	format today_date today_date2 date9. now datetime20. only_time time8.;
+	
+/* mdy(month, day, year) -> 월/일/연도로 SAS 날짜 만들기 */
+	bday = mdy(10,9, 1996);
+	format bday date9.;
+	put bday; /* 출력: 09OCT1996 */
+	time_n = hms(09,52,00);
+	format time_n time8.;
+	put time_n;
+	
 /* intcx("qtr/month/year/day", start_date, end_date) */   
     years = intck('year', bday, today_date);  /* 연도 차이 */
+   	years_passed = intck("year", '01jan2000'd, today_date);
     months = intck('month', bday, today_date);  /* 월 차이 */
     days = intck('day', bday, today_date); /* 일수 차이 */
    
@@ -533,14 +558,8 @@ data date_fn;
     next_month_beg = intnx('month', today_date, 1, 'b');   /* 다음달 첫날 -> 기본값 */
     next_month_end = intnx('month', today_date, 1, 'e');   /* 다음달 마지막날 */
     next_month_mid = intnx('month', today_date, 1, 'middle');   /* 다음달 중간날짜 -> 31일 있는 달이면 16일 */
-	years_passed = intck("year", '01jan2000'd, today_d);
-	
-	format today_d next_qtr next_month date9.;
 
-/* mdy(month, day, year) -> 월/일/연도로 SAS 날짜 만들기 */
-	d = mdy(11, 24, 2025);
-	format d date9.;
-	put d; /* 출력: 24NOV2025 */
+	format next_month_same next_month_beg next_month_end next_month_mid date9.;
 
 /* yrdif(start_date, end_date, 'basis') -> 두 날짜 사이 연수 차이 계산(나이 계산시 중요)
     '30/360' - 매달 30일 기준
@@ -560,7 +579,7 @@ run;
 
 * 문자: SCAN, SUBSTR, TRIM, COMPRESS, UPCASE, LOWCASE
 * 숫자: SUM, MEAN, ROUND, INT, RAND, SMALLEST, LARGEST, ROUND
-* 날짜: MDY, TODAY, YEAR, QTR, MONTH, DAY, INTCK, INTNX, YRDIF, DATE, TIME
+* 날짜: MDY, TODAY, DATE, TIME, YEAR, QTR, MONTH, DAY, INTCK, INTNX, YRDIF
 
 ### 2-7. Convert character ↔ numeric
 
