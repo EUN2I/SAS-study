@@ -725,7 +725,7 @@ run;
 ```
 option mprint symbolgen mlogic;
 
-/* 방법1 : 매크로변수 설정 + data스텝 이용 -> symbolgen 작동 */
+/* 방법1 : 매크로변수 설정 + data 스텝 이용 -> symbolgen 작동 */
 %let gender = M;
 
 data class_&gender.;
@@ -746,157 +746,178 @@ run;
 
 
 ## Part 3 – Error Handling (15–20%)
-🎯 학습 목표
-* 프로그래밍 논리 오류 파악 및 해결
-* 문법 오류 식별 및 수정
+#### **[ 학습 목표 ]** 
+* 논리 오류(program logic bugs) 파악 및 해결
+* 문법 오류(syntax errors) 식별 및 수정
 * SAS 로그 활용 능력
+#### **[ 출제 포인트 ]** 
+* 흔한 문법 실수(세미콜론 누락·따옴표 불일치·예약어 오용 등)
+* 로그의 NOTE/WARNING/ERROR 의 해석법
+  * NOTE = 정보 메시지 (예: 변수 길이 잘림, 자동 형변환, missing value 등) 
+  * WARNING = 주의사항 : 실행은 되었지만 잠재적 문제 (예: BY 변수 정렬 안 됨)
+  * ERROR = 실행중단 원인 : 실행 불가 (예: 옵션 잘못됨, 데이터셋 없음)
+* PUTLOG, _N_, _ERROR_ 같은 디버깅 도구 사용법
 
-### 3-1. Identify and Resolve Programming Logic Errors
+### 3-1. Identify and resolve programming logic errors
+#### **[ 개념 ]** 
+* 문법은 맞지만 원하는 출력이 나오지 않는 오류.
+* 주된 원인 : 조건식 / 데이터 타입 / 필터링 위치(IF vs WHERE) / 자동형변환이 주된 원인
+* DATA step 반복 횟수(_N_)와 오류 플래그(_ERROR_)로 디버깅 가능
+* PUTLOG 활용 : DATA step 내부에서 변수값과 메시지를 로그에 출력할 때 사용(조건부 출력 가능)
+* 매크로 치환/흐름 추적 : OPTIONS MPRINT SYMBOLGEN MLOGIC -> 2-10 참고
 
-PUTLOG Statement
+#### **[ 핵심 포인트 ]** 
+* _N_ : DATA step 반복 횟수
+* _ERROR_ : 오류 발생 시 1
+* 자동형변환은 NOTE로 표시됨 → 반드시 INPUT/PUT 사용
+* WHERE vs IF
+  * WHERE: 데이터 읽기 전에 필터
+  * IF: 읽은 후 필터 → 결과가 달라질 수 있음(논리 오류) -> putlog 로 디버깅
 
-DATA step 실행 중 변수 값 확인 가능
+#### **[ PUTLOG 예제 ]** 
+```
+/* 
+ putlog "문구삽입 가능" 
+ putlog var=; : 변수명과 값 출력
+ putlog _all_; : 모든 변수 출력
+ if … then putlog …; : 조건부 디버깅
+ 문자/숫자 형식 지정 가능 (putlog age 4.2)
+*/
+data debug;
+  set sashelp.class;
+  putlog "DEBUG:" _N_= name= age=;
+  if sex="M" then putlog name= "weight=" weight 10.2 ; * format 형태 출력 가능;
+run;
 
-문법:
+/* 로그창 결과: 
+     DEBUG:_N_=1 Name=Alfred Age=14
+     Name=Alfred weight=    112.50
+     DEBUG:_N_=2 Name=Alice Age=13
+     DEBUG:_N_=3 Name=Barbara Age=13
+     DEBUG:_N_=4 Name=Carol Age=14
+     DEBUG:_N_=5 Name=Henry Age=14
+     Name=Henry weight=    102.50
+     DEBUG:_N_=6 Name=James Age=12
+*/
 
-putlog var1= var2=;
-
-
-👉 실행 로그에 var1=값 var2=값 출력
-
-조건부 PUTLOG
-
-if age < 0 then putlog "ERROR: Invalid age " age=;
-
-
-👉 잘못된 값이 들어왔을 때만 로그 출력
-
-N / ERROR 변수
-
-_N_: DATA step 반복 횟수 (레코드 번호 느낌)
-
-_ERROR_: 오류 발생 시 1, 정상은 0
-
-활용 예시:
-
+/* putlog _all_ : 해당 행의 모든 변수와 값, ERROR, N 모두 출력 */
 data test;
   set sashelp.class;
-  if _N_ <= 5 then putlog _all_;
+  if _n_ <=5 then putlog _all_;
 run;
+
+/* 로그창 결과: 
+     Name=Alfred Sex=M Age=14 Height=69 Weight=112.5 _ERROR_=0 _N_=1
+     Name=Alice Sex=F Age=13 Height=56.5 Weight=84 _ERROR_=0 _N_=2
+     Name=Barbara Sex=F Age=13 Height=65.3 Weight=98 _ERROR_=0 _N_=3
+     Name=Carol Sex=F Age=14 Height=62.8 Weight=102.5 _ERROR_=0 _N_=4
+     Name=Henry Sex=M Age=14 Height=63.5 Weight=102.5 _ERROR_=0 _N_=5
+*/
+
+```
 
 ### 3-2. Recognize and Correct Syntax Errors
+#### **[ 개념 ]** 
+* 프로그램이 실행조차 되지 않는 오류 -> SAS가 "ERR0R:"로 중단함
+* SAS 주요 문법 규칙
+  * 모든 문장은 **세미콜론(;)**으로 끝남
+  * 변수명: 최대 32자, 알파벳/숫자/언더스코어 사용 가능
+  * 예약어는 변수명으로 불가 (예: data, set)
+  * DATA step과 PROC에는 RUN; / QUIT;
 
-SAS 문법 기본 규칙
+* 자주 발생하는 Syntax Error 
+  * 세미콜론 누락 
+  * 옵션 철자 오류 (예: DELIMTER → DELIMITER)
+  * 큰따옴표/작은따옴표 짝이 안 맞음
 
-각 문장은 **세미콜론(;)**으로 끝남
-
-변수명: 최대 32자, 알파벳/숫자/언더스코어 사용 가능
-
-예약어는 변수명으로 불가 (예: data, set)
-
-자주 발생하는 Syntax Error
-
-세미콜론 누락
-
-옵션 철자 오류 (예: DELIMTER → DELIMITER)
-
-큰따옴표/작은따옴표 짝이 안 맞음
-
-로그 해석 예시
-
-data work.test
+#### **[ 로그 해석 예시 ]** 
+1. 세미콜론 빠짐(문법 오류)
+```
+/* 잘못된 코드 */
+data bad
   set sashelp.class;
 run;
+/* (에러 로그) ERROR 56-185: DATASTMTCHK=COREKEYWORDS 옵션이면, SET은(는) DATA 문에서 허용되지 않습니다. DATA 문에서 찾을 수 없는 세미콜론을 확인하거나 DATASTMTCHK=NONE을 사용합니다. */
 
-
-👉 로그에 ERROR 180-322: Statement is not valid or it is used out of proper order.
-→ data 문 끝에 세미콜론 빠짐
-
-### 3-3. Debugging with the Log
-
-NOTE / WARNING / ERROR 메시지 해석 연습 필수
-
-NOTE: 정보 메시지 (예: 변수 길이 잘림, 자동 형변환)
-
-WARNING: 주의 필요 (예: BY 변수 정렬 안 됨)
-
-ERROR: 실행 불가 (예: 옵션 잘못됨, 데이터셋 없음)
-
-✅ 연습문제
-문제 1
-
-다음 코드 실행 시 로그에 어떤 메시지가 나올까?
-
-data new;
+/* 수정 */
+data good;
   set sashelp.class;
-  if age = "15" then output;
+run;
+```
+2. 문자와 숫자 자동 변환(논리 오류)
+```
+/* 비권장 방식 */
+data conv;
+  set sashelp.class;
+  /* age는 numeric인데 "15" 문자와 비교하면 automatic conversion 발생 */
+  if age = "15" then flag=1; /* 로그에 NOTE 나옴 - 비권장 */
 run;
 
+/* 로그에 NOTE가 나오면서 자동형변환(char -> num) 하여 실행 */
+NOTE: 다음의 위치에서 문자형 값이 숫자형 값으로 변환되었습니다. (행):(칼럼). 72:12   
+NOTE: 19개의 관측값을 데이터셋 SASHELP.CLASS.에서 읽었습니다.
+NOTE: 데이터셋 WORK.CONV은(는) 19개 관측값과 6개 변수를 가집니다.
 
-👉 답:
-
-age는 numeric, "15"는 character → 자동 형 변환 발생
-
-로그에 NOTE: Character values have been converted to numeric values 출력
-
-문제 2
-
-다음 코드 실행 시 오류를 찾으시오:
-
-proc print data sashelp.class;
-  var name age;
+/* 명확한 방식 (권장) */
+data conv_fix;
+  set sashelp.class;
+  if age = input("15",8.) then flag=1; /* 혹은 if age = 15; */
 run;
-
-
-👉 답:
-
-data sashelp.class; ❌ → 세미콜론 누락
-
-올바른 코드:
-
-proc print data=sashelp.class;
-  var name age;
-run;
-
-
-💡 시험 팁:
-
-에러 자체를 고치는 문제보다는 **어떤 로그가 나올까?**를 묻는 경우가 많음!
-
-특히 자동 형 변환, 세미콜론 빠짐, 잘못된 옵션 문제 자주 나옴.
-
+```
+3. 등호 빠짐(문법 오류)
+```
+ 69         proc print data sashelp.class;
+                            _____________
+                            73
+ ERROR 73-322: =이(가) 요구됩니다.
+ 70           var name age;
+ 71         run;
+```
 
 ## Part 4 – Generate Reports and Output (15–20%)
-🎯 학습 목표
+#### **[ 학습 목표 ]**
 * PROC PRINT, PROC FREQ, PROC MEANS, PROC UNIVARIATE 활용
 * 라벨, 포맷, 타이틀, 푸터 등 보고서 꾸미기
-* ODS (Output Delivery System) 활용해서 PDF/Excel/HTML 출력
+* ODS (Output Delivery System) 활용해서 HTML/PDF/XLSX/RTF/PPTX 등으로 출력
+  * ods pdf file="x.pdf"; ODS CLOSE 잊지 말기
 * 데이터 Export
+  * proc export data=... outfile="..." dbms=csv replace; run; 또는 libname xlsx로 영구저장
+* 출력 포맷과 데이터형 구분: FORMAT은 표시(출력)용, INFORMAT은 읽기용. 실제 값은 변하지 않는다
+#### **[ 핵심 포인트 ]**
+* PROC PRINT: 행·열을 그대로 보고, VAR, ID, WHERE, LABEL, NOOBS, DOUBLE, SUM 등 자주 사용.
+* PROC FREQ: 1-way/2-way 빈도표. TABLES var*var / nocol norow nopercent; 옵션으로 표 형태 제어. NLEVELS, ORDER= 등.
+* PROC MEANS / SUMMARY: 평균·합계·표준편차 등. CLASS vs BY 차이, OUTPUT OUT=로 결과 데이터셋 생성.
+* PROC UNIVARIATE: 분포·이상치·기술통계(백분위·정규성검정).
+* PROC FORMAT: VALUE·CNTLIN=로 사용자 포맷 정의 → 보고서 가독성 향상.
 
 ### 4-1. Generate List Reports (PROC PRINT)
-
-기본 문법
+#### **[ 개념 ]**
+* 기본 보고서(List report) 생성
+* 변수 선택/순서/라벨/합계 등 커스터마이징 가능
 
 proc print data=sashelp.class;
   var name age height weight;
 run;
 
+#### **[ 주요 옵션 ]**
+* VAR: 출력 변수 선택/순서 조정
+* WHERE: 조건부 출력
+* SUM: 합계
+* ID: ID 변수 지정
+* BY: 그룹별 출력
+* NOOBS: 관측치 번호 제거
+* LABEL: 변수 라벨 사용
 
-주요 옵션 및 문장:
-
-VAR: 출력 변수 선택/순서 조정
-
-WHERE: 조건부 출력
-
-SUM: 합계
-
-ID: ID 변수 지정
-
-BY: 그룹별 출력
-
-NOOBS: 관측치 번호 제거
-
-LABEL: 변수 라벨 사용
+#### **[ 예제 ]**
+```
+proc print data=sashelp.class label noobs;
+    id name;
+    var sex age height weight;
+    label height="Height(cm)";
+    sum height weight;
+    where sex="F";
+run;
+```
 
 ### 4-2. Generate Summary Reports (PROC FREQ, PROC MEANS, PROC UNIVARIATE)
 
@@ -932,7 +953,7 @@ run;
 
 이상치, 분포, 누락값 확인
 
-### 4-3. Enhance Reports
+### 4-3. Enhance Reports (user-defined formats, titles, footnotes, and SAS System reporting options 사용)
 
 사용자 정의 포맷 (PROC FORMAT)
 
