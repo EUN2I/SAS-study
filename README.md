@@ -16,7 +16,7 @@ ODS → PDF/RTF/HTML 중 시험에서 묻는 옵션
 
 날짜 함수 → INTNX, INTCK, YRDIF (꼭 시험 출제)
 
-
+/* proc sql 보다 proc summary가 효율적임 */
 
 # SAS BASE 자격시험 대비 공부노트
 
@@ -883,6 +883,7 @@ run;
 * 데이터 Export
   * proc export data=... outfile="..." dbms=csv replace; run; 또는 libname xlsx로 영구저장
 * 출력 포맷과 데이터형 구분: FORMAT은 표시(출력)용, INFORMAT은 읽기용. 실제 값은 변하지 않는다
+
 #### **[ 핵심 포인트 ]**
 * PROC PRINT: 행·열을 그대로 보고, VAR, ID, WHERE, LABEL, NOOBS, DOUBLE, SUM 등 자주 사용.
 * PROC FREQ: 1-way/2-way 빈도표. TABLES var*var / nocol norow nopercent; 옵션으로 표 형태 제어. NLEVELS, ORDER= 등.
@@ -890,14 +891,10 @@ run;
 * PROC UNIVARIATE: 분포·이상치·기술통계(백분위·정규성검정).
 * PROC FORMAT: VALUE·CNTLIN=로 사용자 포맷 정의 → 보고서 가독성 향상.
 
-### 4-1. Generate List Reports (PROC PRINT)
+### 4-1. Generate List Reports(PROC PRINT)
 #### **[ 개념 ]**
 * 기본 보고서(List report) 생성
 * 변수 선택/순서/라벨/합계 등 커스터마이징 가능
-
-proc print data=sashelp.class;
-  var name age height weight;
-run;
 
 #### **[ 주요 옵션 ]**
 * VAR: 출력 변수 선택/순서 조정
@@ -919,20 +916,17 @@ proc print data=sashelp.class label noobs;
 run;
 ```
 
-### 4-2. Generate Summary Reports (PROC FREQ, PROC MEANS, PROC UNIVARIATE)
+### 4-2. Generate Summary Reports (PROC FREQ, PROC MEANS, PROC SUMMARY, PROC UNIVARIATE)
 
-PROC FREQ
+#### [ PROC FREQ : 빈도표 ]
+* 1-way(일원) / 2-way(이원) 빈도표
+* NLEVELS, ORDER=, NOROW, NOCOL, NOPERCENT
 
 proc freq data=sashelp.class;
   tables sex*age / nocol norow nopercent;
 run;
 
-
-일원/이원 빈도표
-
-옵션: NLEVELS, ORDER=
-
-PROC MEANS
+#### [ PROC MEANS : 기술통계 / 요약통계 ]
 
 proc means data=sashelp.class n mean std min max;
   class sex;
@@ -944,16 +938,19 @@ run;
 
 WAYS, CLASS, VAR, OUTPUT 활용
 
-PROC UNIVARIATE
+#### [ PROC SUMMARY : ??? ]
+
+#### [ PROC UNIVARIATE : 단변량(이상치, 분포, 누락값 확인) ]
+
 
 proc univariate data=sashelp.class;
   var height;
 run;
 
 
-이상치, 분포, 누락값 확인
 
-### 4-3. Enhance Reports (user-defined formats, titles, footnotes, and SAS System reporting options 사용)
+
+### 4-3. Enhance Reports (PROC FORMAT, user-defined formats, titles, footnotes, and SAS System reporting options 사용)
 
 사용자 정의 포맷 (PROC FORMAT)
 
