@@ -10,13 +10,9 @@ FORMAT vs INFORMAT → 시험 단골 헷갈림
 
 WHERE vs IF → 실행 시점 차이 (DATA step vs Procedure 단계)
 
-ODS → PDF/RTF/HTML 중 시험에서 묻는 옵션
-
 숫자형 변수 길이 → 저장 바이트수, 정밀도 시험 포인트
 
-날짜 함수 → INTNX, INTCK, YRDIF (꼭 시험 출제)
-
-/* proc sql 보다 proc summary가 효율적임 */
+proc format 소숫점은?
 
 # SAS BASE 자격시험 대비 공부노트
 
@@ -306,6 +302,15 @@ run;
 ### 2-1. Sort observations in a SAS data set
 #### **[ 개념 ]**
 * 데이터를 특정 변수 기준으로 정렬하거나 중복 제거
+* 
+#### **[ 핵심 포인트 ]** 
+
+* OUT= 옵션 → 원본 보존하면서 새로운 데이터셋 생성
+* NODUP vs NODUPKEY:
+  * NODUP: 모든 변수 기준 중복 제거
+  * NODUPKEY: BY 변수 기준 중복 제거
+* DUPOUT= : 중복된 값들만 따로 뽑아서 저장하는 옵션
+  * out과 dupout의 결과물 합이 전체 데이터셋
 
 #### **[ 예제 ]**
 ```
@@ -320,17 +325,16 @@ proc sort data=sashelp.class out=sorted_desc;
 run;
 
 /* 중복 제거 */
-proc sort data=sashelp.class out=nodup nodupkey;
-    by name;
+proc sort data=sashelp.class 
+      out=nodupes_age
+      dupout=dupes
+      nodupkey;
+    by age;
 run;
+
+
+
 ```
-
-#### **[ 핵심 포인트 ]** 
-
-* OUT= 옵션 → 원본 보존하면서 새로운 데이터셋 생성.
-* NODUP vs NODUPKEY:
-  * NODUP: 모든 변수 기준 중복 제거.
-  * NODUPKEY: BY 변수 기준 중복 제거.
 
 ### 2-2. Conditionally execute SAS statements
 
@@ -505,7 +509,7 @@ run;
 ```
 
 #### **[ 숫자 함수 ]**
-```commandline
+```
 data num_fn;
 	x = 135.756;
 /* 
@@ -931,13 +935,16 @@ RUN;
 
 ### 4-2. Generate Summary Reports (PROC FREQ, PROC MEANS, PROC SUMMARY, PROC UNIVARIATE)
 
-
-
 #### [ PROC MEANS : 수치형 변수의 기본 통계량 요약 ]
 
-요약통계: 평균, 표준편차, 최소/최대
-
-WAYS, CLASS, VAR, OUTPUT 활용
+* 평균(mean), 합계(sum), 최소/최대(min/max), 표준편차(std), 개수(n) 등 수치형 요약
+* 주요 사용 옵션
+  * class : 그룹별 요약
+  * var : 분석할 변수
+  * ways : 그룹 조합 수준 지정
+  * maxdec= 소숫점 자리수
+  * output out= : 결과를 데이터로 저장
+  * noprint : 결과물 안 나오게 설정
 
 ```
 proc means data=sashelp.class n mean std min max;
@@ -951,41 +958,105 @@ proc means data=sashelp.class n mean std min max;
 run;
 ```
 
+#### [ PROC SUMMARY : PROC MEANS와 거의 동일하지만 ‘출력 안 나오는’ 버전 ]
+* proc means의 noprint 버전
+* 집계 결과만 데이터셋으로 생성하는 데 최적화, 성능이 빠르고 빅데이터 집계에 적합
+* 엑셀 피벗테이블처럼 "그룹별 합계 데이터셋" 만들 때 자주 사용
+* 주요 사용 옵션
+  * nway : class 조합의 "완전 매칭" 집계만 출력
+  * ways : 다단계 집계
+  * output out= : 결과 저장
+  * print : 결과 화면 출력(기본값이 noprint)
 
+```
+proc summary data=mydata nway;
+  class sido item;
+  var prem1 prem2 prem3;
+  output out=sum_prem sum=;
+run;
+```
 
-#### [ PROC SUMMARY : ??? ]
+#### [ PROC FREQ : 범주형 데이터 요약(빈도표) ]
+* 범주형 변수의 빈도, 비율, 크로스탭(교차표) 생성
+* 데이터 검증용으로 많이 씀(고유값 확인, 이상값 탐지)
+* 1-way(일원) / 2-way(이원) / n-way 교차표 가능
+* 연산이 매우 빠름
+* 주요 사용 옵션
+  * table A; : 단일 변수 빈도
+  * table A*B; : 교차표
+  * norow nocol nopercent : 비율 제거(순수 count만 보기 좋음)
+  * nlevels : 고유값 개수만 요약
+  * order=???(ex. freq) : 정렬 기준 변경
+  * missing : 결측치도 하나의 카테고리로 취급
 
-
-
-#### [ PROC FREQ : 빈도표 ]
-* 1-way(일원) / 2-way(이원) 빈도표
-* NLEVELS, ORDER=, NOROW, NOCOL, NOPERCENT
-
+```
 proc freq data=sashelp.class;
   tables sex*age / nocol norow nopercent;
 run;
-#### [ PROC UNIVARIATE : 단변량(이상치, 분포, 누락값 확인) ]
+```
 
+#### [ PROC UNIVARIATE : 단일 변수의 상세 통계, 분포, 이상값 및 누락치 탐지 ]
+* 평균, 표준편차, 백분위수, 비대칭도(Skewness), 첨도(Kurtosis), 극단값 등 확인
+* 분포 형태를 보고 이상/극단값((etreme obs) 탐지
+* missing 개수, 5-number summary, normality test(shapiro-wilk 등)
+* 주요 옵션
+  * histogram : 히스토그램
+  * qqplot : 정규 Q-Q 플롯
+  * ods select : 출력 제어(시험 출제)
 
+```
 proc univariate data=sashelp.class;
   var height;
+  histogram height;
+  qqplot height / normal(mu=est sigma=est);
 run;
+```
 
+### 4-3. Enhance Reports (PROC FORMAT, Titles, Footnotes, SAS System reporting options 사용)
 
-
-
-### 4-3. Enhance Reports (PROC FORMAT, user-defined formats, titles, footnotes, and SAS System reporting options 사용)
-
-사용자 정의 포맷 (PROC FORMAT)
+#### 사용자 정의 포맷 (PROC FORMAT)
+* 데이터 값 자체를 바꾸는 것이 아니라 '보여주는 형태'만 바꾸는 도구
+* 실제 값은 그대로 유지되며, 출력, 보고서, 라벨링에서 자주 사용
+* CNTLIN = 옵션 (연습 충분히 하기)
+  * 포맷을 일일이 value로 작성하는 대신 테이블 형태로 포맷 생셩(대량 코드, 범주가 많을 때 사용)
+  * 데이터셋에는 fmtname / type / start / end / label 설정 필요
+  * HLO='H' (High open) / 'L' (Low open) / 'O' (other)
+```
+* 문자형 포멧(value $) / 숫자 범위 포맷;
 
 proc format;
   value $gender 'M'='Male' 'F'='Female';
+  value agegrp low-12 = "Child" 
+               13-19 = "Teenager"
+               20-high = "Adult" ;
 run;
 
 proc print data=sashelp.class;
-  format sex $gender.;
+  format sex $gender. 
+         age agegrp.;
+run;
+```
+```
+* cntlin;
+data fmt_src;
+  fmtname = 'agegroup'; * 포맷 이름 (문자포맷은 $ 붙임);
+  type = 'N'; * N = 숫자, C = 문자 ;
+  start = 0; end = 12; label = 'teen1'; output;
+  start = 13; end = 15; label = 'teen2'; output;
+  start = 16; end = 16; label = 'teen3'; output;
+  /* end = 16 : dummy 값은 의미 없음, 
+     CNTLIN 방식에서 무한대/오픈엔드(open-ended) 범위를 만들 때는
+     HLO='H' (High open) / 'L' (Low open) / 'O' (other) 사용 */     
+run;
+  
+proc format cntlin=fmt_src;
 run;
 
+proc print data=sashelp.class;
+  format age agegroup.;
+run;
+
+```
 
 TITLE / FOOTNOTE
 
@@ -1000,77 +1071,33 @@ proc print data=sashelp.class label;
 run;
 
 ### 4-4. ODS (Output Delivery System)
+* (기출) close 문 빠졌을 때 결과 예측 문제
+* 출력 형식 지정
+* 지원 포맷 : HTML / PDF / RTF / XLSX / PPTX / CSV
+* STYLE= 옵션으로 테마 변경 가능
 
-출력 형식 지정
-
+```
 ods pdf file="report.pdf" style=journal;
 proc print data=sashelp.class;
 run;
 ods pdf close;
-
-
-지원 포맷:
-
-HTML
-
-PDF
-
-RTF
-
-XLSX
-
-PPTX
-
-CSV
-
-👉 STYLE= 옵션으로 테마 변경 가능
+```
 
 ### 4-5. Export Data
-
-PROC EXPORT
-
+* PROC EXPORT
+ 
+```
 proc export data=sashelp.class
   outfile="class.csv"
   dbms=csv replace;
 run;
+```
 
-
-SAS/ACCESS XLSX Engine
-
+* SAS/ACCESS XLSX Engine
+```
 libname myxls xlsx "class.xlsx";
 data myxls.classdata;
   set sashelp.class;
 run;
 libname myxls clear;
-
-✅ 연습문제
-문제 1
-
-아래 코드 실행 시 어떤 출력이 나올까?
-
-proc print data=sashelp.class noobs label;
-  var name sex age;
-  label sex="성별";
-  where age >= 14;
-run;
-
-
-👉 답: 나이 14세 이상 학생의 이름, 성별, 나이 출력 / 성별 라벨 적용 / 관측번호 제거
-
-문제 2
-
-빈도표에서 성별과 나이를 교차표로 만들되, 퍼센트와 row/col 비율은 빼고 단순 개수만 보려면?
-👉 답:
-
-proc freq data=sashelp.class;
-  tables sex*age / nocol norow nopercent;
-run;
-
-
-💡 시험 팁
-
-PROC PRINT, PROC FREQ, PROC MEANS는 거의 100% 출제됨
-
-ODS PDF/EXCEL 문법도 자주 물어봄 (특히 close 문 빠졌을 때 결과 예측 문제)
-
-
+```
