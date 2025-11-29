@@ -907,16 +907,55 @@ run;
 
 #### **[ 예제 ]**
 ```
+
+* name을 id로 취급하는지, var로 취급하는지에 따라 색이 다름;
+
 proc print data=sashelp.class label noobs;
-    id name;
-    var sex age height weight;
-    label height="Height(cm)";
-    sum height weight;
-    where sex="F";
-run;
+/* 	id name; */
+	var name sex age height weight;
+	label height="Height(cm)";
+	sum height weight;  * 총합계 표시됨;
+	where sex="F";
+RUN;
+
+
+proc print data=sashelp.class label noobs;
+	id name;
+	var name sex age height weight;
+	label height="Height(cm)";
+	sum height weight;
+	where sex="F";
+RUN;
+
 ```
 
 ### 4-2. Generate Summary Reports (PROC FREQ, PROC MEANS, PROC SUMMARY, PROC UNIVARIATE)
+
+
+
+#### [ PROC MEANS : 수치형 변수의 기본 통계량 요약 ]
+
+요약통계: 평균, 표준편차, 최소/최대
+
+WAYS, CLASS, VAR, OUTPUT 활용
+
+```
+proc means data=sashelp.class n mean std min max;
+  class sex;
+  var height weight;
+run;
+
+proc means data=sashelp.class n mean std min max;
+	class sex;
+	var _numeric_; * _all / _character_ / _numeric_ ;
+run;
+```
+
+
+
+#### [ PROC SUMMARY : ??? ]
+
+
 
 #### [ PROC FREQ : 빈도표 ]
 * 1-way(일원) / 2-way(이원) 빈도표
@@ -925,21 +964,6 @@ run;
 proc freq data=sashelp.class;
   tables sex*age / nocol norow nopercent;
 run;
-
-#### [ PROC MEANS : 기술통계 / 요약통계 ]
-
-proc means data=sashelp.class n mean std min max;
-  class sex;
-  var height weight;
-run;
-
-
-요약통계: 평균, 표준편차, 최소/최대
-
-WAYS, CLASS, VAR, OUTPUT 활용
-
-#### [ PROC SUMMARY : ??? ]
-
 #### [ PROC UNIVARIATE : 단변량(이상치, 분포, 누락값 확인) ]
 
 
