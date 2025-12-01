@@ -1021,6 +1021,7 @@ run;
   * 포맷을 일일이 value로 작성하는 대신 테이블 형태로 포맷 생셩(대량 코드, 범주가 많을 때 사용)
   * 데이터셋에는 fmtname / type / start / end / label 설정 필요
   * HLO='H' (High open) / 'L' (Low open) / 'O' (other)
+  * 추가학습 연속형 숫자
 ```
 * 문자형 포멧(value $) / 숫자 범위 포맷;
 
@@ -1057,18 +1058,50 @@ proc print data=sashelp.class;
 run;
 
 ```
-
-TITLE / FOOTNOTE
-
-title "학생 키와 몸무게 요약";
-footnote "출처: SASHELP.CLASS 데이터";
-
-
-라벨과 헤더 조정
-
-proc print data=sashelp.class label;
-  label height="키(cm)" weight="몸무게(kg)";
+#### 라벨(label)과 헤더 조정
+* LABEL은 변수 자체의 설명(컬럼 헤더)을 바꾸는 기능
+* 보고서, PRINT, MEANS, REPORT 등에서 표에 표시되는 이름만 변경
+* PROC PRINT에서 LABEL 표시하려면 반드시 옵션 label; 필요
+  * 옵션에서 label split='구분자'로 긴 라벨은 줄바꿈 가능
+```
+proc print data=sashelp.class label split='~';
+  label height="키(cm)~주요정보" weight="몸무게(kg)~민감정보"; 
 run;
+```
+
+#### TITLE / FOOTNOTE
+
+* 1~10까지 여러줄의 제목/주석을 구조적으로 관리, 특정 줄만 변경, 삭제 가능
+* title; : 전체 초기화
+```
+title1 "제목1";
+title2 "제목2";
+title4 "제목4";
+title3 "제목3";
+footnote2 "주석2";
+title4;
+proc print data=sashelp.class label;
+run;
+```
+
+#### SAS System reporting options
+* obs= : 출력할 행 수 제한
+* pagesize= : 페이지 길이 지정
+* linesize= : 한 줄 너비
+* date / nodate : 날짜 출력 여부
+* number / nonumber : 페이지 번호 출력 여부
+```
+options nodate nonumber linesize=120 pagesize=40;
+
+title "Custom Report Settings";
+
+proc print data=sashelp.cars (obs=10) label;
+run;
+
+title;
+options date number;     * 초기화;
+```
+
 
 ### 4-4. ODS (Output Delivery System)
 * (기출) close 문 빠졌을 때 결과 예측 문제
@@ -1077,10 +1110,7 @@ run;
 * STYLE= 옵션으로 테마 변경 가능
 
 ```
-ods pdf file="report.pdf" style=journal;
-proc print data=sashelp.class;
-run;
-ods pdf close;
+예시 이상하다
 ```
 
 ### 4-5. Export Data
