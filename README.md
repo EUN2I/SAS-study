@@ -224,7 +224,7 @@ run;
     * 'ACT/360' → 실제 일수/360 기준
     * 'ACT/365' → 실제 일수/365 기준
 
-```commandline
+```
 data dates;
     today_date = today();             /* 오늘 날짜 */
     bday = '25dec1999'd;              /* 날짜 상수 */
@@ -949,16 +949,15 @@ RUN;
   * autoname : 자동변수명 생성(ex. var1_mean) -> / autolabel도 있음
 
 ```
-proc means data=sashelp.class n mean std min max;
-  class sex;
-  var height weight;
-run;
-
+/* 예제1) 문자열 변수들의 통계량 추출 */
 proc means data=sashelp.class n mean std min max;
 	class sex;
 	var _numeric_; * _all / _character_ / _numeric_ ;
 run;
 
+/* 예제2) 제조국(Origin), 구동방식(DriveTrain) 조합별
+      평균/최소/최대/표준편차를 계산, WAYS로 조합 단계 제어, 출력 데이터셋 저장 */
+      
 proc means data=sashelp.cars n mean std min max;
 	class origin drivetrain make;
 	ways 2 3; * 2개씩 뭉쳐진 조합과, 3개씩 뭉쳐진 조합만 출력;
@@ -966,6 +965,26 @@ proc means data=sashelp.cars n mean std min max;
 	output out=car_summary
 		mean= std= min= max= / autoname; * 생성되는 데이터에 실릴 집계값들; * 
 run;
+
+/* 예제3) 나이 그룹(10~13, 14~16)으로 포맷을 만들고,
+   성별별(weight 기준) 최고치의 키(height) 값을 ID로 뽑아내기 */
+
+proc format;
+    value agegrp
+        10-13 = '10-13'
+        14-high = '14+';
+run;
+
+proc means data=sashelp.class nway noprint;
+    where age >= 12;              /* 조건 필터 */
+    class sex age;
+    format age agegrp.;           /* 포맷으로 그룹 조정 */
+    var weight;
+    id height;                    /* weight 최대인 row의 height 가져오기 */
+    output out=class_max max(weight)=max_wt / autoname;
+run;
+
+
 
 
 ```
@@ -1116,13 +1135,58 @@ options date number;     * 초기화;
 
 
 ### 4-4. ODS (Output Delivery System)
-* (기출) close 문 빠졌을 때 결과 예측 문제
-* 출력 형식 지정
-* 지원 포맷 : HTML / PDF / RTF / XLSX / PPTX / CSV
-* STYLE= 옵션으로 테마 변경 가능
+* SAS 출력물을 다양한 형식으로 저장/포맷팅할 수 있는 시스템
+* 지원 포맷 : HTML / PDF / RTF(워드) / XLSX / PPTX / CSVALL
+* STYLE= 옵션으로 테마 변경 가능(statistical, journal, minimal, htmlblue 등)
+* REPORT 뿐만 아니라 PROC PRINT, PROC MEANS, PROC FREQ, PROC SUMMARY, PROC UNIVARITE 등 모든 프로시저와 활용 가능
+* 항상 OPEN → PROC → CLOSE 구조 : CLOSE 안 닫으면 파일 손상 가능
+* 데이터만 저장하는 PROC EXPORT와 달리, 보고서 형태 그대로 출력하고 스타일 적용이 가능하다
 
 ```
-예시 이상하다
+/* HTML 파일 생성 */
+
+ods html file= "d:\test2_html.html" style=statistical; 
+/* html만 유난히 오류 생김 -> D 드라이브 경로를 절대경로로 인식 못 하고, WORK 밑에 하위 폴더처럼 붙여버림. path를 별도 설정 해주기 */;
+
+ods html path="d:" file="test_html2.html" style=htmlblue;
+proc print data=sashelp.class noobs label;
+  title "Class Report";
+  footnote "end";
+run;
+ods html close;  * 반드시 close 해야 파일이 완성됨;
+
+/* pdf 파일 생성 */
+
+ods pdf file="d:/test_pdf.pdf" style=journal;
+proc means data=sashelp.cars n mean max min;
+    class type;
+    var mpg_city mpg_highway;
+    title "Cars MPG Summary by Type";
+run;
+ods pdf close;
+
+/* rtf 파일 생성 */
+
+ods rtf file="d:/output.rtf" style=meadow; * style 지정으로 색상/폰트 변경 가능;
+proc freq data=sashelp.cars;
+    tables type*origin / nocol nopercent;
+    title "Car Type by Origin";
+run;
+ods rtf close;
+
+/* xlsx 파일 생성 */
+
+ods excel file= "d:/test_labels.xlsx" ;
+proc print data=sashelp.class noobs label;
+run;
+ods excel close;
+
+/* CSV 파일 생성 */
+
+ods csvall file="D:/output.csv";
+proc print data=sashelp.class label;
+run;
+ods csvall close;
 ```
 
 ### 4-5. Export Data
@@ -1173,10 +1237,4 @@ libname myxls xlsx "d:/output.xlsx";
 data myxls.classdata; set sashelp.class;  run;
 data myxls.cars; set sashelp.cars; run;
 libname myxls clear;
-
-ods excel file= "d:/test_labels.xlsx" ;
-proc print data=sashelp.class noobs label;
-run;
-ods excel close;
-
 ```
