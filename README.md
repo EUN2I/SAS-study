@@ -941,10 +941,12 @@ RUN;
 * 주요 사용 옵션
   * class : 그룹별 요약
   * var : 분석할 변수
-  * ways : 그룹 조합 수준 지정
+  * ways n1 n2 n3 : 그룹 조합 수준 지정
+  * nway : CLASS 조합 중 가장 구체적인 조합만 출력
   * maxdec= 소숫점 자리수
   * output out= : 결과를 데이터로 저장
   * noprint : 결과물 안 나오게 설정
+  * autoname : 자동변수명 생성(ex. var1_mean) -> / autolabel도 있음
 
 ```
 proc means data=sashelp.class n mean std min max;
@@ -956,6 +958,16 @@ proc means data=sashelp.class n mean std min max;
 	class sex;
 	var _numeric_; * _all / _character_ / _numeric_ ;
 run;
+
+proc means data=sashelp.cars n mean std min max;
+	class origin drivetrain make;
+	ways 2 3; * 2개씩 뭉쳐진 조합과, 3개씩 뭉쳐진 조합만 출력;
+	var mpg_city mpg_highway weight;
+	output out=car_summary
+		mean= std= min= max= / autoname; * 생성되는 데이터에 실릴 집계값들; * 
+run;
+
+
 ```
 
 #### [ PROC SUMMARY : PROC MEANS와 거의 동일하지만 ‘출력 안 나오는’ 버전 ]
@@ -1114,20 +1126,57 @@ options date number;     * 초기화;
 ```
 
 ### 4-5. Export Data
-* PROC EXPORT
- 
+* SAS에서 외부 파일로 데이터를 내보내는 방법은 2가지
+  * PROC EXPORT -> 간단하고 안정적 / csv, txt, tab, jmp, excel 등 다양한 포맷을 자동 생성 가능
+  * DATA step + FILE/PUT을 이용한 수작업 내보내기
+
+#### PROC EXPORT
+* data = : 내보낼 sas 데이터셋 지정
+* outfile= : 생성할 외부 파일 경로
+* dbms= : csv(콤마 구분 텍스트), tab(탭 구분 텍스트), dlm(원하는 구분자 지정), jmp(jmp 통계 프로그램 파일), xlsx(엑셀) 등 파일 형식 지정
+  * dlm의 경우 마지막에 delimiter='|' 등 구분자 설정 필요함
+* replace : 같은 이름 파일이 있으면 덮어쓰기
+* label : 변수명 대신 라벨을 사용
+* sheet= : 시트명 지정
+
 ```
 proc export data=sashelp.class
   outfile="class.csv"
-  dbms=csv replace;
+  dbms=csv 
+  replace;
+run;
+
+proc export data=sashelp.class
+  outfile="d:/class.txt"
+  dbms=dlm
+  replace  label; * 한글이면 라벨에 "" 씌워짐;
+  delimiter='|';
+run;
+
+proc export data=sashelp.class
+  outfile="d:/class.xlsx"
+  dbms=xlsx
+  replace  label;
+  sheet="데이터추출";
 run;
 ```
 
-* SAS/ACCESS XLSX Engine
+#### SAS/ACCESS XLSX Engine
+* xlsx 엔진 : sas에서 excel을 드라이버 없이 읽고 쓰게 해주는 엔진 / 코드 간단 / 시트명 지정 가능
+* clear로 초기화 하기 
+  * SAS는 해당 XLSX 파일(혹은 DB, 폴더 등)을 세션 종료 전까지 점유(lock) 함
+  * 다른 프로그램에서 접근이 막힐 수 있으며, 엑셀 열기/삭제/이름변경/덮어쓰기 불가
+* ods, proc export로 라벨명을 사용할 수 있지만, libname xlsx 엔진으로는 불가능
+
 ```
-libname myxls xlsx "class.xlsx";
-data myxls.classdata;
-  set sashelp.class;
-run;
+libname myxls xlsx "d:/output.xlsx";
+data myxls.classdata; set sashelp.class;  run;
+data myxls.cars; set sashelp.cars; run;
 libname myxls clear;
+
+ods excel file= "d:/test_labels.xlsx" ;
+proc print data=sashelp.class noobs label;
+run;
+ods excel close;
+
 ```
