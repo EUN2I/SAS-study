@@ -983,10 +983,6 @@ proc means data=sashelp.class nway noprint;
     id height;                    /* weight 최대인 row의 height 가져오기 */
     output out=class_max max(weight)=max_wt / autoname;
 run;
-
-
-
-
 ```
 
 #### [ PROC SUMMARY : PROC MEANS와 거의 동일하지만 ‘출력 안 나오는’ 버전 ]
