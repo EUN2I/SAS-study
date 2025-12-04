@@ -1,20 +1,58 @@
-PROC SORT → NODUPKEY, OUT=, DUPOUT= 차이까지 정리
-
-PROC IMPORT → GUESSINGROWS= 기본값과 주의점, GETNAMES= 옵션
-
-MERGE → IN= 옵션 응용, BY 없을 때 에러/카르테시안 곱 발생
-
-PROC TRANSPOSE → PREFIX=, NAME= 활용법
-
-FORMAT vs INFORMAT → 시험 단골 헷갈림
-
-WHERE vs IF → 실행 시점 차이 (DATA step vs Procedure 단계)
-
-숫자형 변수 길이 → 저장 바이트수, 정밀도 시험 포인트
-
-proc format 소숫점은?
 
 # SAS BASE 자격시험 대비 공부노트
+
+## 0. PDV(Program Data Vector)이란?
+
+* DATA step이 실행될 때, 한 줄(한 관측치)을 담아두는 임시 작업 공간
+  * SAS는 데이터셋 전체를 한번에 읽지 않음
+  * 한 행씩 PDV에 불러와서 코드 실행 → 출력 데이터셋에 기록 
+  → PDV는 "메모리 속 임시 테이블 한 줄"
+
+* PDV에 들어오는 것 : 3가지
+  1) SET / MERGE로 읽어온 변수들 
+  2) 새로 계산한 변수들 (ex)x = y + 1; 같은 로직에서 생긴 변수
+  3) 자동 변수 : _N_ _ERROR_ (출력 데이터셋엔 저장되지 않음).
+
+* PDV의 동작 흐름 (핵심)
+  1) PDV 초기화  : PDV의 모든 변수 = missing(.) 로 초기화
+  2) SET이나 INPUT으로 1행 읽어서 PDV 채우기
+  3) DATA step의 로직 실행  : 계산, 조건문, IF문, LENGTH, FORMAT… 모두 PDV에서 처리됨
+  4) OUTPUT (기본 자동 출력) : 현재 PDV의 값 → 출력 데이터셋에 1행 저장됨
+  5) PDV 내용이 초기화되고 다음 행으로 이동
+  6) 이 과정이 데이터가 끝날 때까지 반복
+
+* PDV 이해하면 풀리는 개념들
+  1) 왜 IF와 WHERE가 다르게 작동하는지 
+    - WHERE: 데이터 읽기 전에 필터 → PDV에 들어오지도 않음 
+    - IF: PDV에 들어온 뒤 제거됨
+  2) RETAIN이 뭔지
+    - PDV는 매 루프마다 초기화 BUT, RETAIN을 쓰면 초기화되지 않고 값이 유지
+  3) MERGE 시 BY 값이 반복되면 왜 문제가 생기는지
+    - PDV에 여러 소스가 동시에 들어와 정렬이 필요해서
+  4) OUTPUT을 중간에 두 번 쓰면 왜 두 줄이 생기는지
+    - PDV 상태를 여러 번 기록하기 때문
+
+```
+data t1;
+input name $ weight;
+datalines;
+	a 60
+	b 55
+	c 40
+;
+run;
+
+data t2;
+	set t1;
+	retain cum;
+	cum+weight;
+	output;
+	if weight > 50 then do;
+		weight = weight - 10;
+		output;
+	end;
+run;
+```
 
 ## 1. Access and Create Data Structures (20–25%)
 ### 1-1. Create temporary and permanent SAS data sets
@@ -81,12 +119,14 @@ proc import datafile='D:\sas_study\library\students.csv'  /* 불러올 원본 CS
 	dbms=csv replace;                                       /* DBMS 형식: csv 파일 / 기존 같은 이름 데이터셋 있으면 덮어쓰기 */
 	guessingrows=100;                                       /* 앞에서 100행을 읽어 변수 유형(문자/숫자)과 길이를 추정 */
 	delimiter=',';                                          /* CSV 파일의 구분자를 ','(콤마)로 지정 */
+	getnames=yes;                                           /* 첫행을 칼럼명으로 사용 */
 run;                                                       /* PROC IMPORT 실행 */
 
 /* Excel 불러오기 */
 proc import datafile='D:\sas_study\library\students.xlsx'
 	out=work.students_3
 	dbms= xlsx replace;
+	getnames=yes; * default가 yes;
 run;
 ```
 #### **[ 예제 (data infile – txt) ]**
@@ -692,10 +732,17 @@ run;
 
 #### **[ 예제 ]** 
 ```
+
+proc sort data=sashelp.class out=class; by sex; run;
+proc transpose data=class out=transposed prefix=col_ name=varname; 
+	by sex;
+run;
+
 /* LONG -> WIDE 버전 */
 
 proc sort data=sashelp.class out=class; by sex; run;
-proc transpose data=class out=transposed prefix=col_ _NAME_=; 
+
+proc transpose data=class out=transposed prefix=col_; 
 	by sex;
     var height weight;
     id name; 
@@ -805,8 +852,8 @@ run;
 * _ERROR_ : 오류 발생 시 1
 * 자동형변환은 NOTE로 표시됨 → 반드시 INPUT/PUT 사용
 * WHERE vs IF
-  * WHERE: 데이터 읽기 전에 필터
-  * IF: 읽은 후 필터 → 결과가 달라질 수 있음(논리 오류) -> putlog 로 디버깅
+  * WHERE: 데이터 읽기 전에 필터 / 프로시져(proc) 에서도 사용 가능
+  * IF: 읽은 후 필터 → 결과가 달라질 수 있음(논리 오류) -> putlog 로 디버깅 / data step에만 사용 가능
 
 #### **[ PUTLOG 예제 ]** 
 ```
@@ -965,6 +1012,13 @@ RUN;
 
 ### 4-2. Generate Summary Reports (PROC FREQ, PROC MEANS, PROC SUMMARY, PROC UNIVARIATE)
 
+#### [ PROC DELETE : 데이터셋 지우기 ]
+* 한번에 한 개만 지울 수 있음
+```
+proc delete data=work.mydata;
+run;
+```
+
 #### [ PROC MEANS : 수치형 변수의 기본 통계량 요약 ]
 
 * 평균(mean), 합계(sum), 최소/최대(min/max), 표준편차(std), 개수(n) 등 수치형 요약
@@ -1064,10 +1118,37 @@ run;
   * print : 결과 화면 출력(기본값이 noprint)
 
 ```
+/* 예제1) 가장 상세한 조합으로 sum data를 내보내기 */
+
 proc summary data=mydata nway;
   class sido item;
   var prem1 prem2 prem3;
   output out=sum_prem sum=;
+run;
+
+/* 예제2) 2개씩의 조합으로 mean data 내보내기 */
+
+proc summary data=sashelp.cars;
+  class origin type drivetrain;
+  var msrp;
+  ways 2;
+  output out=way1 mean= / autoname;
+ run;
+ 
+/* 예제4) format + types로 세밀 계층 제어 + output 2개 */
+proc format;
+	value classfmt
+		low-14 = 'junior'
+		15-high = 'senior';
+run;
+
+proc summary data=sashelp.class;
+	class sex age ;
+	format age classfmt.;
+	var height weight;
+	types age age*sex;
+	output out=fmtstat_m1 mean= / autoname;
+	output out=fmtstat_m2 median=/autoname;
 run;
 ```
 
@@ -1076,17 +1157,67 @@ run;
 * 데이터 검증용으로 많이 씀(고유값 확인, 이상값 탐지)
 * 1-way(일원) / 2-way(이원) / n-way 교차표 가능
 * 연산이 매우 빠름
-* 주요 사용 옵션
+* 주요 사용 옵션(옵션은 보통 슬래시 치고 쓴다)
   * table A; : 단일 변수 빈도
+  * table A B; A, B 각각 빈도표
   * table A*B; : 교차표
   * norow nocol nopercent : 비율 제거(순수 count만 보기 좋음)
-  * nlevels : 고유값 개수만 요약
+    * Row Pct : 행 기준 비율 / Col Pct : 칼럼 기준 / Percent : 매트릭스 기준
+  * nlevels : 고유값 개수만 요약(중요)
   * order=???(ex. freq) : 정렬 기준 변경
   * missing : 결측치도 하나의 카테고리로 취급
 
 ```
+/* 예제1) nocol norow nopercent 옵션 : A*B 형태로 볼때 사용 */
 proc freq data=sashelp.class;
   tables sex*age / nocol norow nopercent;
+run;
+
+/* 예제2) order=freq, list 옵션 */
+proc freq data=sashelp.cars order=freq;
+	tables type*drivetrain / list; * 기본형이 매트릭스인데, 리스트로 나열;
+run;
+
+/* 예제3) 출력하기 */
+proc freq data=sashelp.cars;
+	tables type*origin drivetrain*type / out=freq_out; * 교차표는 2개지만, 출력물은 마지막 교차표만!;
+run;	
+
+/* 예제4) nocum nopercent 옵션 */	
+proc freq data=sashelp.class;
+	tables age / nocum nopercent; * 누적빈도, 누적비율 안나옴;
+run;
+
+/* 예제5) 결측값 확인 nlevels 과 missing 옵션 */
+data tmp; set sashelp.class; if _n_ < 3 then sex=""; run; * 임의로 null 값 생성;
+
+proc print data=tmp; run;
+
+proc freq data=tmp; tables sex; run;
+	
+proc freq data=tmp; tables sex / missing; run;
+
+proc freq data=tmp nlevels; tables sex; run;
+
+/* 예제6) weight으로 가중 빈도 계산(proc means sum과 동일함) */
+proc freq data=sashelp.class;
+	tables sex;
+	weight height;
+run;
+
+proc means data=sashelp.class sum;
+	class sex;
+	var height;
+run;
+
+/* 예제7) 포맷(FORMAT)을 적용한 그룹 빈도 */
+proc format;
+	value agefmt low-13='A' 14-high='B'; 
+run;
+
+proc freq data=sashelp.class;
+	tables age ;
+	format age agefmt.;
 run;
 ```
 
@@ -1102,9 +1233,46 @@ run;
 ```
 proc univariate data=sashelp.class;
   var height;
-  histogram height;
+  histogram height / kernel; * kernel : 히스토그램의 선 그리기;
   qqplot height / normal(mu=est sigma=est);
 run;
+
+/* 다양한 옵션 : normal / plot / mu0=x / cipctldf
+normal : 정규분포 검정
+plot : Q-Q plot과 BoxPlot
+mu0=x : 평균값 검정. 만약 이 옵션이 없으면 default는 mu0=0
+cipctldf : (옵션 없으면, 각 분위수의 값만 표시) 분포 가정 없이 rank 기반 분위수의 95% 신뢰구간 표출 */
+
+proc univariate data=sashelp.cars normal plot mu0=20 cipctldf;
+	var mpg_city;
+	output out=univ_mpg;
+run;
+
+/* 그룹별 상세통계 출력 : sort+by / class 둘 다 가능 */
+proc sort data=sashelp.cars out=cars; by type; run;
+proc univariate data=cars; by type; var length; run;
+
+proc univariate data=sashelp.cars; class type; var length; run;
+
+/* 출력1 ) output out=data_name val=vn; */
+proc univariate data=sashelp.cars normal plot mu0=20 cipctldf;
+	var mpg_city;
+	output out=univ_mpg mean=m; * 지정을 해줘야함;
+run;
+
+/* 출력2 ) ods 이용 */
+ods output Moments      = univ_moments      /* 평균, 분산 등 */
+           BasicMeasures = univ_basic       /* 평균/중앙값 등 */
+           Quantiles     = univ_quantiles   /* 분위수 */
+           TestsForNormality = univ_normal  /* 정규성 검정 */
+           ExtremeObs    = univ_extreme;    /* 최댓값/최솟값 관측치 */
+
+proc univariate data=sashelp.class normal;
+    var height;
+run;
+
+ods output close;
+
 ```
 
 ### 4-3. Enhance Reports (PROC FORMAT, Titles, Footnotes, SAS System reporting options 사용)
