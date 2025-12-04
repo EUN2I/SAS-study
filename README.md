@@ -683,6 +683,8 @@ run;
 #### **[ 핵심 포인트 ]** 
 * ID → 열 이름 생성: ID 변수는 반드시 고유값(unique)이 있어야 깔끔하게 나옴(고유값이 아니면 같은 칼럼명 충돌)
 * VAR → 회전할 값 선택: 여러 개 VAR 지정하면 행이 여러 줄로 생성
+* NAME 자동 생성: 원래 VAR 변수명이 자동으로 _NAME_에 들어감 
+  * 변경하고 싶다면 name = option 사용. _name_의 라벨은 name of former variable 
 * NAME 자동 생성: 원래 VAR 변수명이 자동으로 _NAME_에 들어감
 * BY 문 사용 가능: 그룹별로 transpose 가능(단, 미리 PROC SORT 필요)
 * Wide → Long은 proc transpose 1번
@@ -707,6 +709,19 @@ proc transpose data=class out=class_trans(rename=(_NAME_=hw)) prefix=var;
 	var height weight; 
 run;
 
+proc sort data=sashelp.cars nodupkey out=cars; by drivetrain make; run;
+proc transpose data=cars out=transposed prefix=o_; 
+	by drivetrain make;
+    var invoice;
+    id origin; 
+run;
+
+/* notsorted 정렬 없이. 그냥 연속된것들을 그룹으로 침 */
+proc transpose data=sashelp.cars out=transposed; 
+	by drivetrain make notsorted;
+    var invoice;
+run;
+
 ```
 
 ### 2-10. Macro variables
@@ -716,8 +731,9 @@ run;
 
 #### **[ 핵심 포인트 ]** 
 * %LET으로 매크로 변수 정의
+  * 매크로변수를 만들때 큰따옴표를 넣는 것보다, 코드 내 필요할때마다 추가하기 (권장)
 * 호출 시 &변수명. → . 붙이면 다른 문자와 구분 가능
-  * " " (큰따옴표) → 매크로 변수 &var. 치환됨
+  * " " (큰따옴표) → 매크로 변수 &var. 치환됨 (중요)
   * ' ' (작은따옴표) → 매크로 변수 그대로 문자 &var.로 인식됨
 * 매크로 관련 옵션
   * MPRINT	: 매크로가 실행될 때, 치환된 실제 SAS 코드를 로그에 보여줌
@@ -730,11 +746,12 @@ run;
 option mprint symbolgen mlogic;
 
 /* 방법1 : 매크로변수 설정 + data 스텝 이용 -> symbolgen 작동 */
+
 %let gender = M;
 
 data class_&gender.;
     set sashelp.class;
-    if sex = '&gender.';
+    if sex = "&gender.";
 run;
 
 /* 방법2 : 매크로코드 이용 -> mprint, symbolgen 작동 */
@@ -746,6 +763,19 @@ run;
 %mend;
 
 %filter_class(M);
+
+/* 예제 : 매크로변수 안에 매크로변수 사용 */
+%let titleX = PROC MEANS Of Only &cyl_cnt. Cylinder Vehicles; * title 안에 cyl_cnt 있음;
+%let cyl_cnt = 12;
+
+title "&titleX"; * 문자열 매크로 변수는 큰따옴표 필수;
+proc means data=sashelp.cars;
+	where cylinders=&cyl_cnt;
+	var msrp;
+run;
+
+
+
 ```
 
 
