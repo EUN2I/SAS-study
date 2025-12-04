@@ -1,19 +1,20 @@
 
 # SAS BASE 자격시험 대비 공부노트
 
-## 0. PDV(Program Data Vector)이란?
+## Part 0. PDV(Program Data Vector)이란?
 
-* DATA step이 실행될 때, 한 줄(한 관측치)을 담아두는 임시 작업 공간
+### ** [ 개념 ] **
+  * DATA step이 실행될 때, 한 줄(한 관측치)을 담아두는 임시 작업 공간
   * SAS는 데이터셋 전체를 한번에 읽지 않음
   * 한 행씩 PDV에 불러와서 코드 실행 → 출력 데이터셋에 기록 
   → PDV는 "메모리 속 임시 테이블 한 줄"
 
-* PDV에 들어오는 것 : 3가지
+### ** [ PDV에 들어오는 3가지 ] **
   1) SET / MERGE로 읽어온 변수들 
   2) 새로 계산한 변수들 (ex)x = y + 1; 같은 로직에서 생긴 변수
   3) 자동 변수 : _N_ _ERROR_ (출력 데이터셋엔 저장되지 않음)
 
-* PDV의 동작 흐름 (핵심)
+### ** [ PDV의 동작 흐름 ] **
   1) PDV 초기화  : PDV의 모든 변수 = missing(.) 로 초기화
   2) SET이나 INPUT으로 1행 읽어서 PDV 채우기
   3) DATA step의 로직 실행  : 계산, 조건문, IF문, LENGTH, FORMAT… 모두 PDV에서 처리됨
@@ -21,7 +22,7 @@
   5) PDV 내용이 초기화되고 다음 행으로 이동
   6) 이 과정이 데이터가 끝날 때까지 반복
 
-* PDV 이해하면 풀리는 개념들
+### ** [ PDV 이해하면 풀리는 개념들 ] **
   1) 왜 IF와 WHERE가 다르게 작동하는지 
     - WHERE: 데이터 읽기 전에 필터 → PDV에 들어오지도 않음 
     - IF: PDV에 들어온 뒤 제거됨
@@ -33,6 +34,7 @@
     - PDV 상태를 여러 번 기록하기 때문
 
 ```
+/* retain 과 output 작동 예시 */
 data t1;
 input name $ weight;
 datalines;
@@ -54,7 +56,7 @@ data t2;
 run;
 ```
 
-## 1. Access and Create Data Structures (20–25%)
+## Part 1. Access and Create Data Structures (20–25%)
 ### 1-1. Create temporary and permanent SAS data sets
 
 #### **[ 개념 ]**
@@ -337,7 +339,7 @@ run;
 * WHERE vs IF: WHERE는 데이터 읽기 전에 필터링, IF는 읽은 후 필터링.
 * KEEP=, DROP= 옵션은 DATA step / SET / MERGE / PROC 어디서든 사용 가능.
 
-## 2. Manage Data (35–40%)
+## Part 2. Manage Data (35–40%)
 
 ### 2-1. Sort observations in a SAS data set
 #### **[ 개념 ]**
