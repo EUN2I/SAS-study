@@ -918,7 +918,8 @@ run;
 data bad
   set sashelp.class;
 run;
-/* (에러 로그) ERROR 56-185: DATASTMTCHK=COREKEYWORDS 옵션이면, SET은(는) DATA 문에서 허용되지 않습니다. DATA 문에서 찾을 수 없는 세미콜론을 확인하거나 DATASTMTCHK=NONE을 사용합니다. */
+/* (에러 로그) ERROR 56-185: DATASTMTCHK=COREKEYWORDS 옵션이면, SET은(는) DATA 문에서 허용되지 않습니다. 
+DATA 문에서 찾을 수 없는 세미콜론을 확인하거나 DATASTMTCHK=NONE을 사용합니다. */
 
 /* 수정 */
 data good;
