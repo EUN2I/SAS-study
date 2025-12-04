@@ -996,8 +996,7 @@ proc means data=sashelp.cars n mean std min max;
 		mean= std= min= max= / autoname; * 생성되는 데이터에 실릴 집계값들; * 
 run;
 
-/* 예제3) 나이 그룹(10~13, 14~16)으로 포맷을 만들고,
-   성별별(weight 기준) 최고치의 키(height) 값을 ID로 뽑아내기 */
+/* 예제3) 나이 그룹(10~13, 14~16)으로 포맷을 만들고, 성별별(weight 기준) 최고치 뽑아내기 */
 
 proc format;
     value agegrp
@@ -1010,10 +1009,45 @@ proc means data=sashelp.class nway noprint;
     class sex age;
     format age agegrp.;           /* 포맷으로 그룹 조정 */
     var weight;
-    id height;                    /* weight 최대인 row의 height 가져오기 */
     output out=class_max max(weight)=max_wt / autoname;
 run;
 
+
+/* 예제4) 가중평균 - 판매량을 가중한 inventory와 returns의 평균값 */
+proc means data=sashelp.shoes mean; *std도 가능하지만 너무 심화버전;
+	class product;
+	var inventory returns;
+	weight sales;
+run;
+
+/* 예제5) 여러 OUTPUT문으로 다른 통계 2세트 생성 / where 조건문 */
+
+proc means data=sashelp.cars noprint;
+	where cylinders>=6;
+	class type origin;
+	var msrp invoice;
+	
+	output out=m1 mean= / autoname; * m1 에 평균값 저장;
+	output out=m2 median= / autoname;  * m2 에 중앙값 저장;
+run;
+
+* 결과 데이터셋에는 _TYPE_ , _FREQ_ 칼럼이 자동 생성됨
+  _TYPE_ = 0 : 전체 / 1 : origin만 / 2 :  type만 / 3 : origin*type 조합 ;
+  
+/* 예제6) 멀티라벨 포멧 사용(mlf 옵션) */
+
+proc format;
+	 value mlf_age (multilabel) * 범위가 겹치면 (multilabel) 꼭 표시;
+	 0-12 = 'Child'
+	 13-18 = 'Teen'
+	 15-25 = 'Youth';
+run;
+
+proc means data=sashelp.class n mean;
+	class age / mlf;
+	format age mlf_age.; * 15~18세는 teen, youth 중복으로 들어가서 계산됨;
+	var height;
+run;
 
 
 
