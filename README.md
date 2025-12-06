@@ -81,7 +81,7 @@ run;
 
 #### **[ 핵심 포인트 ]**
 
-- WORK.는 생략 가능.
+- WORK.는 생략 가능
 - 영구 데이터셋 만들 때는 반드시 LIBNAME으로 경로를 할당해야 함
 
 ### 1-2. Investigate SAS data libraries
@@ -90,7 +90,7 @@ run;
 - 데이터셋의 속성(변수명, 타입, 길이 등) 확인 가능
 
 #### **[ 예제 ]** 
-```commandline
+```
 libname mylib 'D:\sas_study\library';
 
 /* 라이브러리 내 데이터셋 구조 확인 */
@@ -104,16 +104,19 @@ run;
 ### 1-3. Access data
 
 #### **[ 개념 ]**
-- 다양한 데이터 불러오기 방법 활용.
+- 다양한 데이터 불러오기 방법 활용
+  - 내부 : data set
+  - 외부 : proc import / data infile / filename
+- 데이터 내보내기(내부 생성) output 활용
 
-#### **[ 예제 (SET statement) ]**
+#### **[ DATA SET statement : 내부 데이터셋 읽기 ]**
 ```
 data new;
     set sashelp.class;  /* 기존 데이터셋 읽기 */
     bmi = (weight / (height*height)) * 703;
 run;
 ```
-#### **[ 예제 (PROC IMPORT – CSV/Excel) ]**
+#### **[ PROC IMPORT – CSV/Excel ]**
 ```
 /* CSV 불러오기 */
 proc import datafile='D:\sas_study\library\students.csv'  /* 불러올 원본 CSV 파일 경로 지정 */
@@ -131,8 +134,8 @@ proc import datafile='D:\sas_study\library\students.xlsx'
 	getnames=yes; * default가 yes;
 run;
 ```
-#### **[ 예제 (data infile – txt) ]**
-```commandline
+#### **[ Data infile – txt ]**
+```
 data work.students_4;
     infile 'D:\sas_study\library\students.txt' dlm=',' dsd firstobs=2;
     /* 
@@ -141,22 +144,67 @@ data work.students_4;
         firstobs=2 → 첫 번째 줄(헤더: name, sex, age, height, weight)은 건너뛰고 2행부터 읽기
     */
     input name : $8. sex $ age height weight;
-    /*  뒤에 $ 표시하면 문자열은 뒤에 반드시 & 표시를 하여야 함 ' $' 또는 ':$20.' 길이까지   
+    /*  뒤에 $ 표시하면 문자열은 뒤에 반드시 $ 표시를 하여야 함 ' $' 또는 ':$20.' 길이까지   
 	     한글 한글자는 길이 2개 차지 */
+run;
+```
+#### **[ Using FILENAME ]**
+```
+filename students='D:\sas_study\library\students.csv';
+proc import datafile=students
+    dbms=csv
+    out=stud
+    replace;
+    getnames=no;
+run; 
+```
+
+#### **[ OUTPUT ]**
+```
+data usa5;
+  set cert.usa(keep=manager wagerate);
+  if _n_=5 then output; * output : data 옆의 데이터셋을 제어;
+run;
+
+* usa 칼럼명을 가진 empty, full 모두 생성되지만, full만 데이터 있음;
+data empty full; 
+  set cert.usa;
+  ouput full;
 run;
 
 ```
 #### **[ 핵심 포인트 ]** 
 - txt는 data infile input 구문 / csv, xlsx는 proc import 구문
-- DBMS= 옵션 → csv, xlsx 지정.
+- DBMS= 옵션 → csv, xlsx 지정 / csv이 아닌 경우 dbms=dlm 하고 delimiter 설정하기
+  - tab은 delimiter='09'x;
 - GUESSINGROWS=: 변수 타입/길이 추정 시 몇 행까지 확인할지.
+- 값에 "",'' 씌워져 있어도 불러올때 벗겨짐
+- option obs=n; n개 행만 불러와라(테스트용) / option obs=max;
+
+#### **[ 예제 ]**
+```
+option validvarname=v7; /* 칼럼명의 띄어쓰기를 _(underscore)로 자동 변환 */
+option validmemname=extend; /* 데이터셋 한글명 가능 */
+data work.확인;
+	infile '/home/u64347709/students.txt' encoding='utf-8' dlm=',' dsd firstobs=2;
+	length name $15.;
+	input Name $ Sex $ Real_Age Height Weight;
+run;
+
+proc import datafile='/home/u64347709/students.txt' 
+	dbms=csv 
+	out = work.확인2
+	replace;
+getnames=yes;
+run;
+```
 
 ### 1-4. Combine SAS data sets
 #### **[ 개념 ]**
 - 여러 데이터셋을 합치는 방법.
 
 #### **[ 예제 (Concatenate / Merge) ]**
-```commandline
+```
 /* 예제 데이터 생성 */
 data class_info;
     input id name $ age;
@@ -178,12 +226,19 @@ data class_score;
     ;
 run;
 
-/* Concatenate : 연달아 이어 붙이기 */
+/* One to one reading : 행별로 나열 - 동일 변수는 덮어쓰고, 길이는 min(data) */
+data combine;
+  set class_info;
+  set class_score;
+run;
+ 
+
+/* Concatenating : 연달아 이어 붙이기 */
 data concat;
 	set class_info class_score;
 run;
 
-/* Merge : 키 잡고 옆으로 붙이기 */
+/* Match Merging : 키 잡고 옆으로 붙이기 */
 
 proc sort data=class_info; by id; run;
 proc sort data=class_score; by id; run;
@@ -228,6 +283,8 @@ run;
 * Missing 값 처리 
   * 한쪽에만 있는 key는 다른 쪽 변수 값이 missing(. 또는 공백`)으로 채워짐.
   
+* concatenate : 같은 변수명인데 두 데이터의 타입이 다르면 -> 에러, 변수길이, 라벨 등은 모두 첫번째 데이터를 따른다
+
 ### 1-5. Create and manipulate SAS date values
 
 #### **[ 개념 ]** 
@@ -289,6 +346,7 @@ run;
 
 #### **[ 개념 ]**
 * 원하는 행/열만 골라내기
+* drop= / keep= 위치
 
 #### **[ 예제 ]**
 ```
@@ -309,6 +367,11 @@ data dropvar;
     drop height weight;
 run;
 
+data result(drop=weight); /* weight을 조건에서 사용하고 마지막에 삭제 */
+    set sashelp.class(keep=name weight);
+    where weight > 60;
+run;
+
 /* if절 활용 */
 /* - 조건부 삭제*/
 data teens_delete;
@@ -326,7 +389,7 @@ data class_mod;
 	else score=50;
 run;
 
-/* - 조건부 출력 제어*/
+/* - 조건부 출력 제어 */
 data teens_out boys_out;
 	set sashelp.class;
 	if age >= 13 and age <= 19 then output teens_out;
@@ -353,6 +416,7 @@ run;
   * NODUPKEY: BY 변수 기준 중복 제거
 * DUPOUT= : 중복된 값들만 따로 뽑아서 저장하는 옵션
   * out과 dupout의 결과물 합이 전체 데이터셋
+* 오름차순 정렬시 missing이 가장 먼저 온다
 
 #### **[ 예제 ]**
 ```
@@ -765,7 +829,7 @@ proc transpose data=cars out=transposed prefix=o_;
     id origin; 
 run;
 
-/* notsorted 정렬 없이. 그냥 연속된것들을 그룹으로 침 */
+/* notsorted : 정렬 없이. 그냥 연속된것들을 그룹으로 침 */
 proc transpose data=sashelp.cars out=transposed; 
 	by drivetrain make notsorted;
     var invoice;
@@ -897,6 +961,14 @@ run;
      Name=Henry Sex=M Age=14 Height=63.5 Weight=102.5 _ERROR_=0 _N_=5
 */
 
+/* 예시 */
+data work.test;
+  set cert.loan01;
+  if code='1' then type='variable';
+  else if code='2' then type='fixed';
+  else type='unkown';
+  if type='unkown' then put 'MY NOTE: invalid value: ' code=; * put도 putlog랑 비슷한 역할;
+
 ```
 
 ### 3-2. Recognize and Correct Syntax Errors
@@ -993,9 +1065,10 @@ run;
 ```
 
 * name을 id로 취급하는지, var로 취급하는지에 따라 색이 다름;
+* name을 id, var에 둘 다 넣으면 두번 나옴;
 
 proc print data=sashelp.class label noobs;
-/* 	id name; */
+    id name;/
 	var name sex age height weight;
 	label height="Height(cm)";
 	sum height weight;  * 총합계 표시됨;
@@ -1462,14 +1535,21 @@ run;
 
 #### SAS/ACCESS XLSX Engine
 * xlsx 엔진 : sas에서 excel을 드라이버 없이 읽고 쓰게 해주는 엔진 / 코드 간단 / 시트명 지정 가능
+* 기존에 그 파일명 또는 시트명이 있으면 -> 덮어씀 / 없으면 -> 생성
 * clear로 초기화 하기 
   * SAS는 해당 XLSX 파일(혹은 DB, 폴더 등)을 세션 종료 전까지 점유(lock) 함
   * 다른 프로그램에서 접근이 막힐 수 있으며, 엑셀 열기/삭제/이름변경/덮어쓰기 불가
 * ods, proc export로 라벨명을 사용할 수 있지만, libname xlsx 엔진으로는 불가능
-
+* 시트명이 한글 또는 공란 포암이면 '~'n 으로 감싸기
 ```
 libname myxls xlsx "d:/output.xlsx";
 data myxls.classdata; set sashelp.class;  run;
 data myxls.cars; set sashelp.cars; run;
 libname myxls clear;
+```
+```
+libname certxl xlsx 'd:/stock.xlsx';
+data korea;
+  set certxl.'한국 주식'n;
+run;
 ```
