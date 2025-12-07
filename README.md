@@ -59,9 +59,49 @@ run;
 ## Part 1. Access and Create Data Structures (20–25%)
 ### 1-1. Create temporary and permanent SAS data sets
 
+#### **[ 기초지식 ]**
+* libname(라이브러리) / 데이터명 / 변수명
+  * 대소문자 구분없음 / 알파벳 또는 언더스코어로 시작 / 공백 및 특수문자 불가(언더스코어 제외)
+  * 최대 길이 libname : 8 / 데이터명, 변수명 : 32
+
+1) VALIDVARNAME= :변수명 규칙 설정 옵션
+| 값              | 의미            | 특징                                                       |
+| -------------- | ------------- | -------------------------------------------------------- |
+| **UPCASE**(기본) | SAS 기본 규칙만 허용 | - 길이 32자<br>- 문자/언더스코어로 시작<br>- 공백·특수문자 불가               |
+| **ANY**        | 거의 모든 문자 허용   | `"my var"` `"가격(원)"` 같은 변수명 가능<br>→ 코드에서 `"변수명"n` 형태로 사용 |
+| **V7**         | SAS V7 규칙만 허용 | - 길이 32자<br>- 문자·숫자·언더스코어·64개 유니코드 문자 허용                 |
+
+2) VALIDMEMNAME= : 데이터명 규칙 설정 옵션
+| 값                  | 의미        | 특징                                      |
+| ------------------ | --------- | --------------------------------------- |
+| **COMPATIBLE**(기본) | SAS 고전 규칙 | - 길이 32자<br>- 문자/언더스코어로 시작<br>- 특수문자 X  |
+| **EXTEND**         | 이름 규칙 확장  | 공백, 특수문자, 한글 허용 → `"my data"` 같은 데이터셋 이름 가능 |
+
+3) 변수명 리스트(Variable lists)
+
+| 표현              | 의미                                                                            | 
+|-----------------|-------------------------------------------------------------------------------| 
+| `x1-xn`         | x1부터 xn까지 변수 지정                                                               |
+| `X--A`          | PDV에서 나타난 순서에 기반하여 X변수부터 A변수까지 지정                                             |
+| `X-numeric-A`   | X변수부터 A변수까지의 모든 숫자변수 지정                                                       |
+| `X-character-A` | X변수부터 A변수까지의 모든 문자변수 지정                                                       |
+| `col_:`         | 'col_'으로 시작하는 모든 변수 지정                                                        |
+| `_all_`         | PDV의 모든 변수 지정                                                                 |
+| `_numeric_`     | PDV의 모든 숫자 변수 지정                                                              |
+| `_character_`   | PDV의 모든 문자 변수 지정                                                              |
+| `_n_`           | 자동 임시 변수 : DATA STEP 반복 횟수                                                    |
+| `_error_`       | 자동 임시 변수 : DATA STEP 실행 중 발생한 에러 횟수( 0 : 에러 없음 / n : n번 에러 발생) |
+
+
+* 행(rows) : observations
+* 열(columns) : variables
+* 결측값(missing) 표현 방식 
+  * char : ' '(blank)
+  * num : . (period)
+
 #### **[ 개념 ]**
-- 임시 데이터셋: WORK 라이브러리에 저장 → 세션 종료 시 삭제됨
-- 영구 데이터셋: 지정한 라이브러리에 저장 → 이후에도 사용 가능
+* 임시 데이터셋: WORK 라이브러리에 저장 → 세션 종료 시 삭제됨
+* 영구 데이터셋: 지정한 라이브러리에 저장 → 이후에도 사용 가능
 
 #### **[ 예제 ]**
 ```
@@ -84,10 +124,19 @@ run;
 - WORK.는 생략 가능
 - 영구 데이터셋 만들 때는 반드시 LIBNAME으로 경로를 할당해야 함
 
-### 1-2. Investigate SAS data libraries
+### 1-2. Investigate SAS data libraries(Proc Contents)
 
 #### **[ 개념 ]** 
-- 데이터셋의 속성(변수명, 타입, 길이 등) 확인 가능
+- 데이터셋의 속성(변수명, 타입, 길이 등) 확인
+
+#### **[ 핵심 포인트 ]**
+- option firstobs=n obs=m; : n번째 행부터 m번째 행까지만 출력(m-n+1개)
+- 옵션 종류 : nods, varnum, lib._all_, out=, short
+  - nods : no dataset names - 데이터셋의 세부속성은 생략하고 목록만 출력
+  - varnum : 실제 칼럼 순서대로 출력(안하면 알파벳순)
+  - libname._all_ : 해당 라이브러리의 전체 데이터 확인
+  - out= : 출력 내용을 데이터셋으로 저장
+  - short : 간략 형태로 요약정보만 보여줌
 
 #### **[ 예제 ]** 
 ```
@@ -96,10 +145,12 @@ libname mylib 'D:\sas_study\library';
 /* 라이브러리 내 데이터셋 구조 확인 */
 proc contents data=mylib.students;
 run;
+
+/* lib._all_ : sashelp 라이브러리의 전체 데이터 확인 */ 
+proc contents data = sashelp._all_ nods;
+run;
+
 ```
-#### **[ 핵심 포인트 ]** 
-- PROC CONTENTS는 시험에서 자주 나오는 필수 구문.
-- 변수 길이, label, format, 인덱스 여부 등을 확인하는 문제 출제됨.
 
 ### 1-3. Access data
 
@@ -313,8 +364,8 @@ run;
   * alignment 옵션:
       * 'b': 구간의 시작일(beginning)
       * 'e': 구간의 끝(end)
-      * 's': 시작 날짜와 동일한 위치
-      * 'm': 중간(midpoint)
+      * 's' / 'same' : 시작 날짜와 동일한 위치
+      * 'm' / 'middle' : 중간(midpoint)
 
 * yrdif(start_date, end_date, 'basis')
   * basis : 연도 계산 기준
@@ -347,6 +398,11 @@ run;
 #### **[ 개념 ]**
 * 원하는 행/열만 골라내기
 * drop= / keep= 위치
+  * DROP=, KEEP= 옵션은 DATA step / SET / MERGE / PROC 어디서든 사용 가능
+* WHERE vs IF: WHERE는 데이터 읽기 전에 필터링, IF는 읽은 후 필터링
+* 조건문 관련 : 0과 .(missing)은 False / 그 외는 True
+  * if x=1 or 2; -> 2는 nonzero이기 때문에 무조건 true, 따라서 해당 조건문은 항상 만족
+  * 효율적인 코딩을 위해 가능성이 높은 조건을 if로 설정하고, 그 다음 조건을 else if로 설정
 
 #### **[ 예제 ]**
 ```
@@ -397,26 +453,49 @@ data teens_out boys_out;
 run;
 ```
 
-#### **[ 핵심 포인트 ]** 
+#### **[ Comparison Operators in a WHERE Statement ]** 
+| Operator             | Meaning | Example                                                    | 설명 |
+|----------------------|---------|------------------------------------------------------------|------|
+| = / eq               | Equal | where age = 10;                                            | age가 10인 행만 선택 |
+| ^= / ~= / NE         | Not equal | where sex ^= 'M';                                          | M이 아닌 값 |
+| '>' / gt             | Greater than | where score > 80;                                          | 80 초과 |
+| '<' / lt             | Less than | where height < 170;                                        | 170 미만 |
+| '>=' / ge            | Greater than or equal | where age >= 20;                                           | 20 이상 |
+| '<=' / le            | Less than or equal | where weight <= 50;                                        | 50 이하 |
+| BETWEEN n and m      | Range 포함 | where age between 10 and 20;                               | 10~20 포함 |
+| IN ('A', 'B' )       | Value list | where type in ('A','B');                                   | A 또는 B |
+| LIKE '%str_'         | Pattern match | where name like 'K%';                                      | K로 시작 |
+| CONTAINS 'str' / ?   | Substring 포함 | where comment contains 'error'; / where comment ? 'error'; | 'error' 포함 |
+| IS NULL / IS MISSING | Missing | where var is null;                                         | 누락값 |
+| IS NOT NULL          | Not missing | where var is not null;                                     | 누락 아님 |
 
-* WHERE vs IF: WHERE는 데이터 읽기 전에 필터링, IF는 읽은 후 필터링.
-* KEEP=, DROP= 옵션은 DATA step / SET / MERGE / PROC 어디서든 사용 가능.
+#### ** [ 와일드카드 ] **
+| 패턴 | 의미	| 예시 결과 |
+|---|---------|--------------------------|
+| %	| 0개 이상 문자 |	'A%', 'B%X', '%123' |
+| _	|정확히 1 문자 |	'A_1', 'B_A', _X_ |
+| A%	| A로 시작하면 OK	| A, AA, ABC, A123 |    
+| %A	| A로 끝나면 OK |	A, BA, 123A |            
+| _A%	|두 번째가 A면 OK	| KA12, QA, ZA33 |       
+| %AB%	| AB를 포함하는 모든 값 |	ABC, XABY, 12AB34 | 
 
 ## Part 2. Manage Data (35–40%)
 
 ### 2-1. Sort observations in a SAS data set
 #### **[ 개념 ]**
 * 데이터를 특정 변수 기준으로 정렬하거나 중복 제거
-* 
+
 #### **[ 핵심 포인트 ]** 
 
 * OUT= 옵션 → 원본 보존하면서 새로운 데이터셋 생성
+  * out 설정 안하면, 원본을 덮어씀
 * NODUP vs NODUPKEY:
   * NODUP: 모든 변수 기준 중복 제거
   * NODUPKEY: BY 변수 기준 중복 제거
 * DUPOUT= : 중복된 값들만 따로 뽑아서 저장하는 옵션
   * out과 dupout의 결과물 합이 전체 데이터셋
 * 오름차순 정렬시 missing이 가장 먼저 온다
+
 
 #### **[ 예제 ]**
 ```
@@ -437,9 +516,6 @@ proc sort data=sashelp.class
       nodupkey;
     by age;
 run;
-
-
-
 ```
 
 ### 2-2. Conditionally execute SAS statements
@@ -516,13 +592,40 @@ run;
 * RENAME=, LENGTH, LABEL, FORMAT 시험 단골
 * LENGTH는 문자열 변수 값 입력 전에 선언해야 적용됨
 * FORMAT(출력형식) : 숫자에서 중요함. 문자열은 FORMAT 보단 LENGTH 중요
-    * COMMAw.d: 천 단위 콤마
-    * DOLLARw.d: $ + 콤마
-    * PERCENTw.d: 100배하고 % 표시
-    * BESTw.: 가장 깔끔한 숫자 자동 선택
-    * Z w.: 앞자리 0 채우기
-    * w.d: 기본 숫자 포맷 (콤마 없음)
-    * 날짜는 숫자 → format 필수 (date9./ datetime19. / mmddyy10. / yymmdd10. / ddmmyy10.)
+
+< 숫자 Format >
+
+| FORMAT         | 의미               | 예시 FORMAT                 | 출력 결과                     |
+| -------------- | ---------------- | ------------------------- |---------------------------|
+| **BESTw.**     | 자동 최적 숫자 형태      | `best12.`                 | `12345.6789`              |
+| **COMMAw.d**   | 천 단위 콤마          | `comma12.2`               | `12,345.68`               |
+| **DOLLARw.d**  | $ + 천 단위 콤마      | `dollar12.2`              | `$12,345.68`              |
+| **PERCENTw.d** | 100배 + % 표시      | `percent8.1` (0.256 입력 시) | `25.6%`                   |
+| **Zw.**        | 왼쪽 0 채우기         | `z8.`                     | `00123456` (예: 123456 입력) |
+| **w.d**        | 기본 숫자 포맷 (콤마 없음) | `10.3`                    | `12345.679`               |
+| **Ew.**        | 지수표현(Scientific) | `e12.4`                   | `1.23457E+04`             |
+| **HEXw.**      | 16진수 변환          | `hex8.`                   | `0001E240`                |
+| **BINARYw.**   | 2진수              | `binary16.`               | `1110001001000000`        |
+
+< 날짜 FORMAT (숫자를 날짜처럼 보이게) >
+
+| FORMAT          | 의미                 | 출력 결과                        |
+|-----------------|--------------------|------------------------------|
+| **DATE9.**      | DDMMMYYYY          | `31DEC2024`                  |
+| **MMDDYY10.**   | MM/DD/YYYY         | `12/31/2024`                 |
+| **YYMMDD10.**   | YYYY-MM-DD         | `2024-12-31`                 |
+| **DDMMYY10.**   | DD/MM/YYYY         | `31/12/2024`                 |
+| **WEEKDATE.**   | 요일까지 긴 형식          | `Tuesday, December 31, 2024` |
+| **WORDDATE.**   | 월 명칭 포함 긴 형식       | `December 31, 2024`          |
+| **MONNAME.**    | 월 이름 출력            | `December`                   |
+| **WEEKDAY.**    | 요일출력(일요일-1)        | `3`(화요일)                     |
+| **MONTH.**      | 월 숫자 표시(1–12)      | `12`                         |
+| **YEAR.**       | 연도 표시              | `2024`                       |
+| **DATETIME20.** | DDMMMYYYY:HH:MM:SS | `31DEC2024:13:45:20`         |
+| **DATETIME.**   | DDMMMYY:HH:MM:SS   | `31DEC24:13:45:20`           |
+| **TIME8.**      | HH:MM:SS           | `13:45:20`                   |
+| **TIME5.**      | HH:MM              | `13:45`                      |
+| **HHMM.**       | HHMM 형식            | `13:45`                      |
 
 ### 2-5. Accumulate sub-totals and totals
 
@@ -531,34 +634,30 @@ run;
 
 #### **[ 예제 ]** 
 ```
+/* 그룹이 변수 1개로 결정될 때 */
+
 proc sort data=sashelp.class out=class;
 	by sex;
 run;
 
-data totals1;
+data totals1; * first. 으로 조건 설정;
 	set class;
 
-	/* data문 안에서의 by절 - 우선 먼저 proc sort로 정렬 먼저 해야 사용 가능
-	: SAS에게 성별 그룹별 처리하겠다고 알림
-	: 이제 SAS는 각 성별 그룹의 첫 번째(first.sex), 마지막(last.sex) 관측치를 인식할 수 있음 */
+              /* data문 안에서의 by절 - 우선 먼저 proc sort로 정렬 먼저 해야 사용 가능
+              : SAS에게 성별 그룹별 처리하겠다고 알림
+              : 이제 SAS는 각 성별 그룹의 첫 번째(first.sex), 마지막(last.sex) 관측치를 인식할 수 있음 */
 	by sex;
-	/* retain : DATA step이 반복되면서 변수가 초기화되지 않고 값을 유지하도록 함
-					일반 변수는 DATA step 반복마다 값이 초기화됨*/
+              /* retain : DATA step이 반복되면서 변수가 초기화되지 않고 값을 유지하도록 함
+                              일반 변수는 DATA step 반복마다 값이 초기화됨*/
 	retain total_wt 0;
 	total_wt + weight; /* 누적합 */
 	if first.sex then do;
 		total_wt=weight; end;
 run;
 
-data totals2;
+data totals2; * last. 으로 조건 설정;
 	set class;
-
-	/* data문 안에서의 by절 - 우선 먼저 proc sort로 정렬 먼저 해야 사용 가능
-	: SAS에게 성별 그룹별 처리하겠다고 알림
-	: 이제 SAS는 각 성별 그룹의 첫 번째(first.sex), 마지막(last.sex) 관측치를 인식할 수 있음 */
 	by sex;
-	/* retain : DATA step이 반복되면서 변수가 초기화되지 않고 값을 유지하도록 함
-					일반 변수는 DATA step 반복마다 값이 초기화됨*/
 	retain total_wt 0;
 	total_wt + weight; /* 누적합 */
 	if last.sex then do;
@@ -566,18 +665,98 @@ data totals2;
 		total_wt=0;
 		end;
 run;
+```
+< (중요) 그룹이 변수 n개로 결정될 때 >
+* by v1 v2 v3 인 경우, v1이 가장 큰 그룹, v2, v3이 차례대로 세부그룹이 됨. 계층적 구조
+  * first.v1  → 제일 바깥 그룹이 처음 시작할 때
+  * first.v2  → v1 그룹 유지 + v2 값이 새로 시작할 때
+  * first.v3  → v1, v2 그룹 유지 + v3 값이 새로 시작할 때
+* 따라서, v3을 기준으로 first, last를 사용해야 v1&v2&v3을 그룹으로 한 계산을 할 수 있음
 
 ```
+proc format;
+  value agegrp
+  low-13 = young
+  14-high = old;
+run;
 
+data class;
+  set sashelp.class;
+  age_group = put(age, agegrp.);
+run;
+
+proc sort data=class out=class;
+  by sex age_group;
+run;
+
+data class_result;
+  set class;
+  by sex age_group;
+  retain sum_height 0;
+  sum_height+height;
+  if first.age_group then sum_height=height;
+  if last.age_group;
+run;
+
+proc print data=class;
+	by sex age_group;
+	id sex age_group;
+	sum height;
+run;
+```
 #### **[ 핵심 포인트 ]** 
 
-* BY문 + FIRST./LAST. 변수 활용.
+* BY문 + FIRST./LAST. 변수 활용 -> BY 내 변수가 여러개일 때 중요.
 * RETAIN + 누적 변수(+) 조합 시험에 자주 나옴.
 
 ### 2-6. Use SAS functions
+#### **[ 문자함수 ]**
+
+| 함수            | 인수 구조                             | 의미(기본값 포함)                                                                         | 예시                           | 결과      |
+| ------------- |-----------------------------------|------------------------------------------------------------------------------------| ---------------------------- | ------- |
+| **SCAN**      | `SCAN(string, n, <delimiters>)`   | 구분자로 문자열을 나눈 뒤 n번째(-1:마지막단어) 단어 반환 **기본 delimiters :공백 + 대부분의 특수문자(., / \ : ; 등)** | `scan("A,B,C",2)`            | `"B"`   |
+| **SUBSTR**    | `SUBSTR(string, start, <length>)` | start부터 length만큼 잘라 반환 **length 생략 시 = 끝까지**                                       | `substr("HELLO",2,3)`        | `"ELL"` |
+| **TRIM**      | `TRIM(string)`                    | 오른쪽 공백 제거                                                                          | `trim("A   ")`               | `"A"`   |
+| **STRIP**     | `STRIP(string)`                   | 좌·우 공백 모두 제거                                                                       | `strip("  A  ")`             | `"A"`   |
+| **COMPRESS**  | `COMPRESS(string, <chars>)`       | 문자열에서 문자 제거 **chars 생략 : 공백 제거**                                                   | `compress("A B C")`          | `"ABC"` |
+| **TRANSLATE** | `TRANSLATE(string, to, from)`     | from에 있는 문자들을 to로 1:1 매핑 변환                                                        | `translate("abc","12","ab")` | `"12c"` |
+| **UPCASE**    | `UPCASE(string)`                  | 대문자로 변환                                                                            | `upcase("abc")`              | `"ABC"` |
+| **LOWCASE**   | `LOWCASE(string)`                 | 소문자로 변환                                                                            | `lowcase("ABC")`             | `"abc"` |
+| **LEFT**      | `LEFT(string)`   | 문자열의 왼쪽의 공백을 제거한 뒤, 나머지 공백은 오른쪽으로 이동시킴                                             | `left("   ABC")`   | `"ABC   "` |
+
+#### **[ 숫자함수 ]**
+
+| 함수           | 인수 구조                       | 의미(기본값 포함)                                                | 예시                    | 결과  |
+| ------------ | --------------------------- |-----------------------------------------------------------| --------------------- | --- |
+| **SUM**      | `SUM(x1, x2, …)`            | 결측값(.) 무시하고 합계 계산                                         | `sum(3,.,5)`          | `8` |
+| **MEAN**     | `MEAN(x1, x2, …)`           | 결측값(.) 무시하고 평균 계산                                         | `mean(3,.,9)`         | `6` |
+| **ROUND**    | `ROUND(number, <unit>)`     | unit 단위로 반올림. **unit 생략＝1 (정수 반올림)**                      | `round(3.56)`         | `4` |
+| **INT**      | `INT(number)`               | 소수점 잘라 버림(내림 아님 → 단순 절삭)                                  | `int(3.9)`            | `3` |
+| **RAND**     | `RAND("dist", parameters…)` | 지정된 분포에 따라 난수 생성                                          | `rand("uniform")`     | 0~1 |
+| **SMALLEST** | `SMALLEST(n, x1, x2, …)`    | n번째 작은 값(smallest(n, of x1-xn) / smallest(n, of x1 x2 x3) | `smallest(2,3,1,5,4)` | `2` |
+| **LARGEST**  | `LARGEST(n, x1, x2, …)`     | n번째 큰 값                                                   | `largest(2,3,1,5,4)`  | `4` |
+
+#### **[ 날짜함수 ]**
+
+| 함수          | 인수 구조                                            | 의미(기본값 포함)                            | 예시                                        | 결과          |
+|-------------|--------------------------------------------------|---------------------------------------|-------------------------------------------|-------------|
+| **MDY**     | `MDY(month, day, year)`                          | 월/일/년 → SAS 날짜                        | `mdy(12,25,2024)`                         | SAS date    |
+| **HMS**     | `HMS(hour, minute, second)`                      | 시/분/초 → SAS 시간값(초 단위)                 | `hms(12, 30, 15)`                         | 45015       |
+| **TODAY**   | `TODAY()`                                        | 오늘 날짜(SAS 값)                          | `today()`                                 | SAS date    |
+| **DATE**    | `DATE()`                                         | TODAY()와 동일                           | `date()`                                  | SAS date    |
+| **TIME**    | `TIME()`                                         | 오늘 자정 기준 현재까지의 초(second)              | `time()`                                  | 0~86400     |
+| **YEAR**    | `YEAR(date)`                                     | 연도 반환                                 | `year('01JAN2023'd)`                      | `2023`      |
+| **QTR**     | `QTR(date)`                                      | 분기 반환(1~4)                            | `qtr('01FEB2023'd)`                       | `1`         |
+| **MONTH**   | `MONTH(date)`                                    | 월 반환                                  | `month('01FEB2023'd)`                     | `2`         |
+| **DAY**     | `DAY(date)`                                      | 날짜(day) 반환                            | `day('01FEB2023'd)`                       | `1`         |
+| **WEEKDAY** | `WEEKDAY(date)`                                  | 요일 번호 반환 **1=일, 2=월 … 7=토**           | `weekday('01JAN2024'd)`                   | `2` 월요일)    | 
+| **INTCK**   | `INTCK(interval, start, end)`                    | 두 날짜 구간 개수(기준일(1일, 일요일) 카운트) - 정수 출력) | `intck('month','01JAN23'd,'15APR23'd)`    | `3`         |
+| **INTNX**   | `INTNX(interval, start, increment, <alignment>)` | 날짜 이동 **alignment 생략 = 'b'**          | `intnx('month','05JAN23'd,2)`             | `01MAR2023` |
+| **YRDIF**   | `YRDIF(start, end, 'basis')`                     | 두 날짜 차이를 연수로 반환                       | `yrdif('01JAN23'd,'01JAN24'd,'ACT/ACT')`  | `1`         |
+| **DATDIF**  | `DATDIF(start, end, 'basis')`                    | 두 날짜 차이를 연수로 반환                       | `datdif('01JAN23'd,'01JAN24'd,'ACT/ACT')` | `365`       |    
+
 
 #### **[ 문자 함수 ]**
-
 ```
 data char_fn;
     str = "   Hello, SAS!   "; * 데이터 상에서 뒷자리 공백은 보이지 않음;
@@ -610,7 +789,6 @@ data char_fn;
 	email = "user@example.com";
 	id  = scan(email, 1, '@');
 	dom = scan(email, 2, '@');
-
 run;
 ```
 
@@ -644,12 +822,9 @@ data num_fn;
 	x1 = 2;
 	x2 = 5;
 	x3 = 1;
-	a = 6;
-	b = 3;
-	c = 10;
 	
-	s = smallest(1, of a b c);
-	l = largest(2, of x1-x3);
+	small = smallest(1, of x1 x2 x3);
+	large = largest(2, of x1-x3);
 	
 run;
 ```
@@ -678,17 +853,20 @@ data date_fn;
 /* mdy(month, day, year) -> 월/일/연도로 SAS 날짜 만들기 */
 	bday = mdy(10,9, 1996);
 	format bday date9.;
-	put bday; /* 출력: 09OCT1996 */
 	time_n = hms(09,52,00);
 	format time_n time8.;
 	put time_n;
 	
 /* intcx("qtr/month/year/day", start_date, end_date) */   
-    years = intck('year', bday, today_date);  /* 연도 차이 */
-   	years_passed = intck("year", '01jan2000'd, today_date);
+    years = intck('year', '09oct1996'd, today_date);  /* 연도 차이 */
     months = intck('month', bday, today_date);  /* 월 차이 */
     days = intck('day', bday, today_date); /* 일수 차이 */
-   
+
+    weeks = intck('week', '31dec2017'd, '01jan2018'd); * 결과 : 0;
+    months = intck('month', '31dec2017'd, '01jan2018'd); * 결과 : 1 - 1일이 카운트;
+    years = intck('year', '31dec2017'd, '01jan2018'd); * 결과 : 1 - 2018년 1월1일이 카운트;
+    years2 = intck('year', '01jan2018'd, '31dec2018'd); * 결과 : 0 - 364일 지났으나, 1.1일이 지나지 않음;
+    
 /* intnx("qtr/month/year/day", start_date, n, 'b/e/same/middle') */   
     next_month_same = intnx('month', today_date, 1, 'same');   /* 다음달 같은 날짜 */
     next_month_beg = intnx('month', today_date, 1, 'b');   /* 다음달 첫날 -> 기본값 */
@@ -698,39 +876,51 @@ data date_fn;
 	format next_month_same next_month_beg next_month_end next_month_mid date9.;
 
 /* yrdif(start_date, end_date, 'basis') -> 두 날짜 사이 연수 차이 계산(나이 계산시 중요)
-    '30/360' - 매달 30일 기준
-    'ACT/360' - 실제일수/360
-	'ACT/365' - 실제일수/365
-	'ACT/ACT' - 실제일수/실제연도일수 */
-	dob = '29feb1992'd;
-	today = '28feb2025'd;
-	age_basic = yrdif(dob, today); * 33.0;
-	age_act365 = yrdif(dob, today, 'ACT/365'); * 33.021917808;
-	age_actact = yrdif(dob, today, 'ACT/ACT'); * 32.997701924;   
+    '30/360' - 매달 30일 기준 - daydif 사용 가능
+    'ACT/ACT' - 실제일수/실제연도일수 - daydif 사용 가능
+    'ACT/360' - 실제일수/360 - daydif 사용 불가
+	'ACT/365' - 실제일수/365 - daydif 사용 불가
+ */
 	
+	base_date = '29feb1992'd;
+	today = '28feb2025'd;
+	age_basic = yrdif(base_date, today); * 33.0;
+	age_act365 = yrdif(base_date, today, 'ACT/365'); * 33.021917808;
+	age_actact = yrdif(base_date, today, 'ACT/ACT'); * 32.997701924;   
 run;
 ```
-
-#### **[ 핵심 포인트 ]** 
-
-* 문자: SCAN, SUBSTR, TRIM, COMPRESS, UPCASE, LOWCASE
-* 숫자: SUM, MEAN, ROUND, INT, RAND, SMALLEST, LARGEST, ROUND
-* 날짜: MDY, TODAY, DATE, TIME, YEAR, QTR, MONTH, DAY, INTCK, INTNX, YRDIF
 
 ### 2-7. Convert character ↔ numeric
 
 #### **[ 개념 ]**  
-* INPUT(문자→숫자) : input(char_var, format.)
+* INPUT(문자→숫자) : input(char_var, informat.)
 * PUT(숫자→문자) : put(num_var, format.)
+* 자동변환 : 숫자형변수에 문자형함수를 쓸 때 / 문자형변수에 숫자형함수를 쓸 때
+  * 문자형으로 처리된 숫자는 함수에서 호출되면 자동으로 숫자처리 될 수 있음. 단, 1,742.62처럼 COMMA가 있는 경우 NULL처리됨
+    * 단, where 절에선 자동변환 안됨
+  * 숫자도 문자형 함수에서 호출되면 자동으로 문자처리 될 수 있음(하지만 12자리(digit) 미만의 숫자는 함수 결과가 블랭크로 나올 수 있음)
+  * 문자형으로 처리된 숫자는 'n' 따옴표 씌어진 숫자랑 비교 가능( ch1 = '3' -> where ch1 > '2'; -> true)
 
 #### **[ 예제 ]** 
 ```
 data convert;
-    char_num = "123";
-    real_num = input(char_num, 8.);     /* 문자 → 숫자(8자리, 정수형) */
+    char_num1 = "123";
+    real_num1 = input(char_num1, 8.);     /* 문자 → 숫자(8자리, 정수형) */
+	
+    char_num2 = '1,234,567';
+    real_num2 = input(char_num2, comma9.);
 
     num_val = 2025;
     str_val = put(num_val, 4.);         /* 숫자 → 문자(길이를 정해줌) */
+   
+   	char = "hi";
+run;
+
+data convert;
+    set convert;
+    if char_num1 > '120' then check = 'yes';
+    num_substr = substr(num_val, 1,2); *12자리 숫자 미만은 작동 잘 안될 수 있음;
+    num_concat = num_val||'/'||char;
 run;
 ```
 
@@ -1039,6 +1229,7 @@ run;
 * 데이터 Export
   * proc export data=... outfile="..." dbms=csv replace; run; 또는 libname xlsx로 영구저장
 * 출력 포맷과 데이터형 구분: FORMAT은 표시(출력)용, INFORMAT은 읽기용. 실제 값은 변하지 않는다
+* option firstobs=n obs=m; : n번째 행부터 m번째 행까지만 출력(m-n+1개)
 
 #### **[ 핵심 포인트 ]**
 * PROC PRINT: 행·열을 그대로 보고, VAR, ID, WHERE, LABEL, NOOBS, DOUBLE, SUM 등 자주 사용.
@@ -1055,11 +1246,12 @@ run;
 #### **[ 주요 옵션 ]**
 * VAR: 출력 변수 선택/순서 조정
 * WHERE: 조건부 출력
-* SUM: 합계
+* SUM: 칼럼의 합계 -> var엔 안쓰고 sum에만 써도 행별 변수값 다 보임
 * ID: ID 변수 지정
 * BY: 그룹별 출력
 * NOOBS: 관측치 번호 제거
 * LABEL: 변수 라벨 사용
+* PAGEBY : 그룹별로 페이지 분리
 
 #### **[ 예제 ]**
 ```
@@ -1068,7 +1260,7 @@ run;
 * name을 id, var에 둘 다 넣으면 두번 나옴;
 
 proc print data=sashelp.class label noobs;
-    id name;/
+    id name;
 	var name sex age height weight;
 	label height="Height(cm)";
 	sum height weight;  * 총합계 표시됨;
@@ -1084,6 +1276,19 @@ proc print data=sashelp.class label noobs;
 	where sex="F";
 RUN;
 
+* 그룹별 구분을 제목 말고 칼럼으로 -> ID / 개별 페이지로 -> PAGEBY ;
+
+proc sort data=sashelp.class out=class;
+by sex;
+run;
+
+proc print data=class label;
+  var age height weight; * sum 있으면 생략 가능;
+  sum age height weight;
+  by sex;
+  id sex; * id 없이 하면 제목에 그룹명 표시 & obs 표시;
+  pageby sex;
+run;
 ```
 
 ### 4-2. Generate Summary Reports (PROC FREQ, PROC MEANS, PROC SUMMARY, PROC UNIVARIATE)
@@ -1411,16 +1616,22 @@ run;
 #### TITLE / FOOTNOTE
 
 * 1~10까지 여러줄의 제목/주석을 구조적으로 관리, 특정 줄만 변경, 삭제 가능
-* title; : 전체 초기화
+* title; footnote; : 전체 초기화
+* title1 title3만 설정하면, 그 사이에 빈 한줄 생김(title2 칸)
+* title1,2,3,4가 있는데, 3을 다시 설정하면 4는 초기화(사라짐)
 ```
 title1 "제목1";
-title2 "제목2";
-title4 "제목4";
 title3 "제목3";
+title4 "제목4";
+title3 "제목_재설정";
 footnote2 "주석2";
-title4;
 proc print data=sashelp.class label;
 run;
+title; *초기화;
+proc means data=sashelp.class;
+	var height; 
+run;
+
 ```
 
 #### SAS System reporting options
