@@ -1305,16 +1305,23 @@ run;
 
 #### [ PROC MEANS : 수치형 변수의 기본 통계량 요약 ]
 
-* 평균(mean), 합계(sum), 최소/최대(min/max), 표준편차(std), 개수(n) 등 수치형 요약
+* 평균(mean), 합계(sum), 최소/최대(min/max), 표준편차(std), 개수(n) 등 수치형(Numeric) 요약
 * 주요 사용 옵션
-  * class : 그룹별 요약
+  * class, by : 그룹별 요약
+    * by는 사전 정렬이 필요하고, class는 필요없음
+    * by는 그룹별 소제목 밑에 각각 표가 생성, class는 한 표에 연달아 & n obs 칼럼(그룹별 빈도) 생성
   * var : 분석할 변수
   * ways n1 n2 n3 : 그룹 조합 수준 지정
   * nway : CLASS 조합 중 가장 구체적인 조합만 출력
   * maxdec= 소숫점 자리수
   * output out= : 결과를 데이터로 저장
+    * output엔 _type_, _freq_ 자동 생성
   * noprint : 결과물 안 나오게 설정
   * autoname : 자동변수명 생성(ex. var1_mean) -> / autolabel도 있음
+* 주요 사용 계산식(기본은 n, mean, std, min, max)
+  * CLM(신뢰구간), CSS(편차제곱합), CV(변동계수), KURTOSIS(첨도), LCLM(신뢰구간 하한값), MOD(최빈값)
+  * N(결측치 아닌 값 개수), NMISS(결측치 개수), RANGE(최댓값 최솟값 사이구간), MAX, MIN, MEAN, SKEWNESS(왜도), STDDEV(표준편차), STDERR(표준오차), SUM(합계), SUMWGT(가중합), UCL(신뢰구간 상한선), USS(평균보정안한 제곱값), VAR(분산)
+  * MEDIAN(=P50), P1(1%), P5(5%), Q1(=P25), QRANGE(Q3-Q1 구간)
 
 ```
 /* 예제1) 문자열 변수들의 통계량 추출 */
@@ -1386,9 +1393,6 @@ proc means data=sashelp.class n mean;
 	format age mlf_age.; * 15~18세는 teen, youth 중복으로 들어가서 계산됨;
 	var height;
 run;
-
-
-
 ```
 
 #### [ PROC SUMMARY : PROC MEANS와 거의 동일하지만 ‘출력 안 나오는’ 버전 ]
@@ -1403,7 +1407,6 @@ run;
 
 ```
 /* 예제1) 가장 상세한 조합으로 sum data를 내보내기 */
-
 proc summary data=mydata nway;
   class sido item;
   var prem1 prem2 prem3;
@@ -1411,7 +1414,6 @@ proc summary data=mydata nway;
 run;
 
 /* 예제2) 2개씩의 조합으로 mean data 내보내기 */
-
 proc summary data=sashelp.cars;
   class origin type drivetrain;
   var msrp;
@@ -1419,7 +1421,7 @@ proc summary data=sashelp.cars;
   output out=way1 mean= / autoname;
  run;
  
-/* 예제4) format + types로 세밀 계층 제어 + output 2개 */
+/* 예제3) format + types로 세밀 계층 제어 + output 2개 */
 proc format;
 	value classfmt
 		low-14 = 'junior'
@@ -1442,19 +1444,31 @@ run;
 * 1-way(일원) / 2-way(이원) / n-way 교차표 가능
 * 연산이 매우 빠름
 * 주요 사용 옵션(옵션은 보통 슬래시 치고 쓴다)
-  * table A; : 단일 변수 빈도
-  * table A B; A, B 각각 빈도표
-  * table A*B; : 교차표
-  * norow nocol nopercent : 비율 제거(순수 count만 보기 좋음)
+  * tables A; : 단일 변수 빈도
+  * tables A B; A, B 각각 빈도표 (tables x1-x3; 가능)
+  * tables A*B; : 교차표(A가 행, B가 칼럼)
+  * tableS A*B*C : A가 CASE 같은 느낌, 각각 CASE 내에서 B,C 교차
+  * nofreq nopercent norow nocol : 비율 제거(순수 count만 보기 좋음 / 다중일때)
     * Row Pct : 행 기준 비율 / Col Pct : 칼럼 기준 / Percent : 매트릭스 기준
+  * nocum : 누적치 제거(일원일때)
   * nlevels : 고유값 개수만 요약(중요)
+  * list : 교차표 대신 긴 테이블로 표출
+  * crosslist : tables A*B*C;에서 A는 칼럼 B,C는 리스트형태로 긴 테이블로 표출
   * order=???(ex. freq) : 정렬 기준 변경
+  * page : 한 페이지엔 1개 표만 출력
+  * compress : 무조건 연달아 표 출력 (원랜 표가 길어서 끊길 것 같으면, 다음 페이지부터 출력함)
   * missing : 결측치도 하나의 카테고리로 취급
-
+  * proc freq; run; : data= 설정 안할 경우, 바로 최근에 생성된 data를 기준으로 보여줌
+  
 ```
-/* 예제1) nocol norow nopercent 옵션 : A*B 형태로 볼때 사용 */
+/* (일원빈도표) 모든 변수에 대해 각각 빈도, 비율, 누적빈도, 누적비율 표 생성 
+              만약 몇몇 변수만 보고 싶다면 table A B; 설정 */
+ proc freq data=sashelp.class;
+        run;
+          
+/* (교차빈도표) nocol norow nopercent 옵션 : A*B 형태로 볼때 사용 */
 proc freq data=sashelp.class;
-  tables sex*age / nocol norow nopercent;
+  tables sex*age / nopercent norow nocol ;
 run;
 
 /* 예제2) order=freq, list 옵션 */
