@@ -717,7 +717,7 @@ run;
 
 | 함수            | 인수 구조                             | 의미(기본값 포함)                                                                         | 예시                           | 결과      |
 | ------------- |-----------------------------------|------------------------------------------------------------------------------------| ---------------------------- | ------- |
-| **SCAN**      | `SCAN(string, n, <delimiters>)`   | 구분자로 문자열을 나눈 뒤 n번째(-1:마지막단어) 단어 반환 **기본 delimiters :공백 + 대부분의 특수문자(., / \ : ; 등)** | `scan("A,B,C",2)`            | `"B"`   |
+| **SCAN**      | `SCAN(string, n, <delimiters>)`   | 구분자로 문자열을 나눈 뒤 n번째(-1:마지막단어) 단어 반환 <br>기본 delimiters :공백 + 대부분의 특수문자(., / \ : ; 등) | `scan("A,B,C",2)`            | `"B"`   |
 | **SUBSTR**    | `SUBSTR(string, start, <length>)` | start부터 length만큼 잘라 반환 **length 생략 시 = 끝까지**                                       | `substr("HELLO",2,3)`        | `"ELL"` |
 | **TRIM**      | `TRIM(string)`                    | 오른쪽 공백 제거                                                                          | `trim("A   ")`               | `"A"`   |
 | **STRIP**     | `STRIP(string)`                   | 좌·우 공백 모두 제거                                                                       | `strip("  A  ")`             | `"A"`   |
@@ -1676,7 +1676,23 @@ options date number;     * 초기화;
 * STYLE= 옵션으로 테마 변경 가능(statistical, journal, minimal, htmlblue 등)
 * REPORT 뿐만 아니라 PROC PRINT, PROC MEANS, PROC FREQ, PROC SUMMARY, PROC UNIVARITE 등 모든 프로시저와 활용 가능
 * 항상 OPEN → PROC → CLOSE 구조 : CLOSE 안 닫으면 파일 손상 가능
-* 데이터만 저장하는 PROC EXPORT와 달리, 보고서 형태 그대로 출력하고 스타일 적용이 가능하다
+* PROC EXPORT과 달리 보고서 형태 그대로 저장 (제목, 스타일 O)
+* html 주요 사용 옵션
+
+| 옵션            | 설명                                  |
+| ------------- |-------------------------------------|
+| **BODY=**     | 실제 보고서 내용이 들어가는 파일<br>대부분은 BODY 파일만 쓰면 되므로 FILE=으로 충분  |
+| **CONTENTS=** | 목차/목록용 파일                           |
+| **FRAME=**    | BODY + CONTENTS를 합쳐 보여주는 frameset 파일 |
+
+* xlsx 주요 사용 옵션
+
+| 옵션            | 설명                                                                                                       |
+| ------------- |----------------------------------------------------------------------------------------------------------|
+| **sheet_interval=**     | - 'table' (기본값) : proc 실행할 때마다 새 시트 <br> - 'none' : 시트 변경 안함 → 모든 결과가 한 시트에 <br> - 'page' : 페이지 단위로 새 시트 |
+| **sheet_name=** | 시트 이름을 “직접 지정”                                                                                           |
+| **sheet_interval=**    | 시트를 "언제" 새로 만들지 결정<br>(ex. "bygroup" : 그룹별 테이블을 시트 각각 출력)                                                |
+| **sheet_label=**    | 새 시트에 자동 이름 붙이기<br>(ex. "country" : country - us 와 같이 개별 시트 자동 생성                                        |
 
 ```
 /* HTML 파일 생성 */
@@ -1684,7 +1700,7 @@ options date number;     * 초기화;
 ods html file= "d:\test2_html.html" style=statistical; 
 /* html만 유난히 오류 생김 -> D 드라이브 경로를 절대경로로 인식 못 하고, WORK 밑에 하위 폴더처럼 붙여버림. path를 별도 설정 해주기 */;
 
-ods html path="d:" file="test_html2.html" style=htmlblue;
+ods html path="d:" file="test_html2.html" style=htmlblue (url=none);
 proc print data=sashelp.class noobs label;
   title "Class Report";
   footnote "end";
@@ -1712,7 +1728,9 @@ ods rtf close;
 
 /* xlsx 파일 생성 */
 
-ods excel file= "d:/test_labels.xlsx" ;
+* options(sheet_interval='none') : 한 시트에 모든 결과물 출력하게 하는 옵션;
+
+ods excel file= "d:/test_labels.xlsx" options(sheet_interval='none');
 proc print data=sashelp.class noobs label;
 run;
 ods excel close;
