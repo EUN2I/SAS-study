@@ -33,6 +33,23 @@
   4) OUTPUT을 중간에 두 번 쓰면 왜 두 줄이 생기는지
      * PDV 상태를 여러 번 기록하기 때문
 
+### ** [ DATA STEP의 구성 ] **
+| 구분             | Compilation Phase (컴파일 단계)                                                                           | Execution Phase (실행 단계)                                                    |
+| -------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **무슨 단계?**     | DATA step 실행 **준비 단계**                                                                               | 실제 데이터 **처리 단계**                                                           |
+| **데이터 읽힘?**    | ❌ 전혀 안 읽힘                                                                                            | ✔ 1행씩 반복해서 읽힘                                                              |
+| **주요 작업**      | - 문법 체크(Syntax check)<br>- 변수 타입/길이 결정<br>- PDV 구조 생성<br>- Input Buffer 설정<br>- Output dataset 구조 정의 | - PDV 초기화(매 행마다)<br>- INPUT으로 데이터 1행 읽기<br>- 계산/조건문 실행<br>- OUTPUT으로 1행 저장 |
+| **PDV 생성/초기화** | ✔ **한 번만 생성**됨                                                                                       | ✔ **각 OBS 처리할 때마다 초기화**됨                                                   |
+| **변수 초기값**     | 숫자=`.` / 문자=`""` 로 초기 상태 설정                                                                          | 매 OBS마다 숫자=`.` 문자=`""` 로 재초기화                                              |
+| **루프 구조**      | 없음                                                                                                   | 데이터 끝까지 **자동 반복 루프**                                                       |
+| **영향 받는 문장**   | LENGTH, RETAIN, FORMAT 등 **변수 정의 관련 문장**                                                             | IF, SUM, FIRST./LAST., 계산 식 등 **실제 데이터 처리 문장**                             |
+| **에러 검출**      | 문법 에러 대부분 이 단계에서 발견                                                                                  | 논리 에러(0으로 나누기 등) 발생 가능                                                     |
+| **RUN의 의미**    | 컴파일 완료 준비                                                                                            | 실행 종료 후 출력 1회 기록                                                           |
+
+* 문법오류는 컴파일은 하지만 실행하지 않음
+* data error는 실행은 하지만 결과가 결측값으로 된 데이터임
+* SAS에서 variable type이 틀린 경우를 발견하면, 자동으로 올바른 타입으로 고치려고 시도함. 실패시 missing으로 반환
+* 컴파일 단계 끝엔 'no observation'임. missing 또는 0 또는 blank 아님. 실행 구문을 가야 missing이 됨
 
 ```
 /* retain 과 output 작동 예시 */
@@ -323,7 +340,9 @@ run;
 #### **[ 핵심 포인트 ]** 
 * MERGE 사용할 때는 반드시 BY 변수 기준으로 정렬해야 함. 
   * 'by 변수;' 없으면 모든 행이 Cartesian Product처럼 붙어버림
-
+* BY 변수 외에 동일한 이름의 변수가 A와 B 모두에 존재할 경우
+→ MERGE 결과에서는 두 데이터셋 중 마지막에 나열된 데이터셋(B)의 값이 우선 적용되어, A의 값은 B의 값으로 덮어쓰기된다.
+* A 데이터셋의 BY 그룹이 연속되어 나타나는 경우 → 해당 BY 그룹이 유지되는 동안 B 데이터셋에서 읽힌 값은 다음 BY 그룹이 나타날 때까지 그대로 유지된다.
 * (in= ) 옵션 자주 출제 (조건부 merge에서 활용).
   * if a and b; → inner join 
   * if a; → left join 
@@ -343,6 +362,8 @@ run;
 
 #### **[ 개념 ]** 
 * SAS는 날짜를 1960-01-01 = 0으로 저장. (이전은 음수, 이후는 양수)
+* 윤년(leap year)을 반영한 정확한 날짜 기준
+* 자정이 0 sec. time value는 0부터 86400까지
 * 시간은 초 단위(datetime 값은 1960-01-01 00:00:00 기준)
 * 날짜 상수 표현
   * (날짜) '25dec1999'd
@@ -498,8 +519,8 @@ run;
 * DUPOUT= : 중복된 값들만 따로 뽑아서 저장하는 옵션
   * out과 dupout의 결과물 합이 전체 데이터셋
 * 오름차순 정렬시 missing이 가장 먼저 온다
-
-
+* PROC SORT는 무조건 BY가 있어야함. 없으면 에러 뜨고 멈춤.
+* BY GROUP : 동일한 by value의 집합 / 한 by group 내에서 첫번째 obs의 first.var만 1이고 나머진 0
 #### **[ 예제 ]**
 ```
 /* 오름차순 정렬 */
@@ -525,6 +546,8 @@ run;
 
 #### **[ 개념 ]**  
 * 조건문으로 데이터 처리 제어
+* 길이(length)는 data step의 첫번째 assignment statement(할당문)에서 결정됨. 데이터셋 내의 첫번째 data value가 아니라!
+* the length of a new var. is determined by the first reference
 
 #### **[ 예제 ]** 
 ```
@@ -612,23 +635,29 @@ run;
 
 < 날짜 FORMAT (숫자를 날짜처럼 보이게) >
 
-| FORMAT          | 의미                 | 출력 결과                        |
-|-----------------|--------------------|------------------------------|
-| **DATE9.**      | DDMMMYYYY          | `31DEC2024`                  |
-| **MMDDYY10.**   | MM/DD/YYYY         | `12/31/2024`                 |
-| **YYMMDD10.**   | YYYY-MM-DD         | `2024-12-31`                 |
-| **DDMMYY10.**   | DD/MM/YYYY         | `31/12/2024`                 |
-| **WEEKDATE.**   | 요일까지 긴 형식          | `Tuesday, December 31, 2024` |
-| **WORDDATE.**   | 월 명칭 포함 긴 형식       | `December 31, 2024`          |
-| **MONNAME.**    | 월 이름 출력            | `December`                   |
-| **WEEKDAY.**    | 요일출력(일요일-1)        | `3`(화요일)                     |
-| **MONTH.**      | 월 숫자 표시(1–12)      | `12`                         |
-| **YEAR.**       | 연도 표시              | `2024`                       |
-| **DATETIME20.** | DDMMMYYYY:HH:MM:SS | `31DEC2024:13:45:20`         |
-| **DATETIME.**   | DDMMMYY:HH:MM:SS   | `31DEC24:13:45:20`           |
-| **TIME8.**      | HH:MM:SS           | `13:45:20`                   |
-| **TIME5.**      | HH:MM              | `13:45`                      |
-| **HHMM.**       | HHMM 형식            | `13:45`                      |
+| FORMAT          | 의미                   | 출력 결과                        |
+|-----------------|----------------------|------------------------------|
+| **DATE7.**      | DDMMMYY              | `31DEC24`                    |
+| **DATE9.**      | DDMMMYYYY            | `31DEC2024`                  |
+| **DDMMYY10.**   | DD/MM/YYYY           | `31/12/2024`                 |
+| **MMDDYY8.**    | MM/DD/YYYY           | `12/31/24`                   |
+| **MMDDYY10.**   | MM/DD/YYYY           | `12/31/2024`                 |
+| **YYMMDD10.**   | YYYY-MM-DD           | `2024-12-31`                 |
+| **DATETIME20.** | DDMMMYYYY:HH:MM:SS   | `31DEC2024:13:45:20`         |
+| **DATETIME.**   | DDMMMYY:HH:MM:SS     | `31DEC24:13:45:20`           |
+| **TIME11.**     | HH:MM:SS.SS          | `13:45:20.34`                |
+| **TIME8.**      | HH:MM:SS             | `13:45:20`                   |
+| **TIME5.**      | HH:MM(5가 최소단위)       | `13:45`                      |
+| **HHMM.**       | HHMM 형식              | `13:45`                      |
+| **WEEKDATE.**   | 요일까지 긴 형식            | `Tuesday, December 31, 2024` |
+| **WEEKDATE3.**  | 요일까지 긴 형식            | `Tue` |
+| **WORDDATE.**   | 월 명칭 포함 + 연도 무조건 4자리 | `December 31, 2024`          |
+| **WORDDATE10.** | 월 명칭 포함 + 연도 무조건 4자리 | `December`          |
+| **MONNAME.**    | 월 이름 출력              | `December`                   |
+| **WEEKDAY.**    | 요일출력(일요일-1)          | `3`(화요일)                     |
+| **MONTH.**      | 월 숫자 표시(1–12)        | `12`                         |
+| **YEAR.**       | 연도 표시                | `2024`                       |
+
 
 ### 2-5. Accumulate sub-totals and totals
 
@@ -715,17 +744,25 @@ run;
 ### 2-6. Use SAS functions
 #### **[ 문자함수 ]**
 
-| 함수            | 인수 구조                             | 의미(기본값 포함)                                                                         | 예시                           | 결과      |
-| ------------- |-----------------------------------|------------------------------------------------------------------------------------| ---------------------------- | ------- |
-| **SCAN**      | `SCAN(string, n, <delimiters>)`   | 구분자로 문자열을 나눈 뒤 n번째(-1:마지막단어) 단어 반환 <br>기본 delimiters :공백 + 대부분의 특수문자(., / \ : ; 등) | `scan("A,B,C",2)`            | `"B"`   |
-| **SUBSTR**    | `SUBSTR(string, start, <length>)` | start부터 length만큼 잘라 반환 **length 생략 시 = 끝까지**                                       | `substr("HELLO",2,3)`        | `"ELL"` |
-| **TRIM**      | `TRIM(string)`                    | 오른쪽 공백 제거                                                                          | `trim("A   ")`               | `"A"`   |
-| **STRIP**     | `STRIP(string)`                   | 좌·우 공백 모두 제거                                                                       | `strip("  A  ")`             | `"A"`   |
-| **COMPRESS**  | `COMPRESS(string, <chars>)`       | 문자열에서 문자 제거 **chars 생략 : 공백 제거**                                                   | `compress("A B C")`          | `"ABC"` |
-| **TRANSLATE** | `TRANSLATE(string, to, from)`     | from에 있는 문자들을 to로 1:1 매핑 변환                                                        | `translate("abc","12","ab")` | `"12c"` |
-| **UPCASE**    | `UPCASE(string)`                  | 대문자로 변환                                                                            | `upcase("abc")`              | `"ABC"` |
-| **LOWCASE**   | `LOWCASE(string)`                 | 소문자로 변환                                                                            | `lowcase("ABC")`             | `"abc"` |
-| **LEFT**      | `LEFT(string)`   | 문자열의 왼쪽의 공백을 제거한 뒤, 나머지 공백은 오른쪽으로 이동시킴                                             | `left("   ABC")`   | `"ABC   "` |
+| 함수           | 인수 구조                                              | 의미(기본값 포함)                                                                                                   | 예시                                | 결과             |
+|--------------|----------------------------------------------------|--------------------------------------------------------------------------------------------------------------|-----------------------------------|----------------|
+| **SCAN**     | `SCAN(string, n, <delimiters>)`                    | 구분자로 문자열을 나눈 뒤 n번째(-1:마지막단어) 단어 반환 <br>기본 delimiters :공백 + 대부분의 특수문자(., / \ : ; 등)                           | `scan("A,B,C",2)`                 | `"B"`          |
+| **SUBSTR**   | `SUBSTR(string, start, <length>)`                  | start부터 length만큼 잘라 반환 **length 생략 시 = 끝까지**<br>구문 왼쪽에 사용하면 할당 위치를 의미(중요)                                    | `substr("HELLO",2,3)`             | `"ELL"`        |
+| **TRIM**     | `TRIM(string)`                                     | 오른쪽 공백 제거                                                                                                    | `trim("A   ")`                    | `"A"`          |
+| **STRIP**    | `STRIP(string)`                                    | 좌·우 공백 모두 제거                                                                                                 | `strip("  A  ")`                  | `"A"`          |
+| **COMPBL**   | `COMPBL(string)`                      | 문자열에서 여러개의 공란을 한개로 변경                               | `compbl("A      B   C")`          | `"A B C"`      |
+| **COMPRESS** | `COMPRESS(string, <chars>)`                        | 문자열에서 문자 제거 **chars 생략 : 공백 제거**                                                                             | `compress("A B C")`               | `"ABC"`        |
+| **TRANSLATE** | `TRANSLATE(string, to, from)`                      | from에 있는 문자들을 to로 1:1 매핑 변환                                                                                  | `translate("abc","12","ab")`      | `"12c"`        |
+| **TRANWRD**  | `TRANWRD(string, from, to)`                        | from에 있는 문자들을 to로 1:1 매핑 변환                                                                                  | `tranwrd("abc","ab","12")`        | `"12c"`        |
+| **UPCASE**   | `UPCASE(string)`                                   | 대문자로 변환                                                                                                      | `upcase("abc")`                   | `"ABC"`        |
+| **LOWCASE**  | `LOWCASE(string)`                                  | 소문자로 변환                                                                                                      | `lowcase("ABC")`                  | `"abc"`        |
+| **PROPCASE** | `PROPCASE(string, <delimiters>)`                   | 첫번째 문자를 대문자로 변환                                                                                              | `propcase("abc def")`             | `"Abc Def"`    |
+| **LEFT**     | `LEFT(string)`                                     | 문자열의 왼쪽의 공백을 제거한 뒤, 나머지 공백은 오른쪽으로 이동시킴                                                                       | `left("   ABC")`                  | `"ABC   "`     |
+| **!!**       | `trim(A)!!B`                                       | 문자열 이어붙이기(뒷공백 제거하지 않음. 필요시 TRIM.                                                                             | `"abc  "!!"cd"`                   | `"abc  cd"`    |
+| **INDEX**    | `INDEX(source, excerpt)`                           | source 문자열에서 excerpt가 **처음 등장하는 위치 반환(없으면 0)** (대소문자 구분 O)                                                   | `index("AbcDef", "cD")`           | `3`            |
+| **FIND**     | `FIND(source, excerpt <, startpos> <, modifiers>)` | 문자열 검색(대소문자 무시는 옵션)<br>`startpos`: 검색 시작 위치 지정 <br> `modifiers`: `"i"` 대소문자 무시 `"t"` 트림 `"o"` startpos 이후 검색 | `find("AbcDef","CD","i")`         | `3`            |
+| **CATX**     | `CATX(delimiter, item1, item2, ...)`               | 구분자(delimiter) 넣어서 문자열 **결합**, 공백 자동 제거                                                                      | `catx("-", "2025", " 12 ", "08")` | `"2025-12-08"` | 
+
 
 #### **[ 숫자함수 ]**
 
@@ -780,13 +817,20 @@ data char_fn;
     part63 = substr(str, 6, 3);
     part63_no_space = substr(no_space, 6, 3);
 
+    data temp(drop=exchange);
+        set cert.temp;
+        exchange = substr(phone,1,3);
+        if exchange='622' then substr(phone, 1, 3)='433';
+    run;
+
+
 /* compress(str, 'abc') -> 문자열에서 a와 b와 c 제거 -> 구분자 없이 ' '안에 없애고 싶은 문자 다 넣으면 됨 */
     cleaned = translate(compress(str, ',!'),'_',' ');
 
 /* scan(string, n, delimiters) -> n : n번째 문자열 가져옴(-1은 마지막문자열), delimiters : 구분자(생략하면 개수 상관없이 공백) */
 
-	str2 = "Apple  Banana Orange";
-	x = scan(str2, 2); * Banana;
+	str2 = "Apple,  Banana Orange";
+	x = scan(str2, 2); * Banana : 연속된 구분자는 1개로 침;
 	y = scan(str2, -1); * Orange;
 
 	email = "user@example.com";
@@ -930,9 +974,16 @@ run;
 ### 2-8. Process data using DO loops
 
 #### **[ 개념 ]**  
-* DO i = 1 to n; END; → 반복 loop.
+* DO는 DATA 구문에서만 가능! PROC에서 사용 불가
+* DO i = 1 to n; END; → **반복 loop.**
+* DO i = n to 1 by -m; END; → n부터 m만큼 차감하면서 1까지 반복
+* DO index-variable = 1,3,4,6; : 숫자 나열
+* DO index-variable = 'MON', 'TUE', 'THR'; : 문자값 나열
+* DO index-variable = place, show; : 변수 나열
 * DO WHILE(condition); END; : TRUE이면 일해라 -> 최초 1회 실행 보장하지 않음
 * DO UNTIL(condition); END; : 일단 시작하고 TRUE면 그만해 -> 최초 1회 실행 무조건
+* DO year=1 to 10 until (Capital>=50000); : 10년까지 또는 capital이 50000이 될때까지 실행
+* DO year=1 to 10 while (Capital<50000); : 위랑 동일함
 
 #### **[ 예제 ]** 
 ```
@@ -1098,6 +1149,13 @@ run;
   * ERROR = 실행중단 원인 : 실행 불가 (예: 옵션 잘못됨, 데이터셋 없음)
 * PUTLOG, _N_, _ERROR_ 같은 디버깅 도구 사용법
 
+| 에러종류 | 설명 | 결과 |
+|--------|-----|-------|
+|문법오류(Syntax Error) | 문법적으로 아예 틀림 | 에러가 난 위치에서 멈추고 에러로그를 띄움 |
+| 실행오류(Data Error) | x="abc"+1 | NOTE는 뜨지만 멈추지 않고 돌아감 |
+| 의미오류(Logic Error) | 의도한 바가 아님(where age='12';) | 의도하지 않은 결과 출력(putlog로 에러 확인) |
+
+
 ### 3-1. Identify and resolve programming logic errors
 #### **[ 개념 ]** 
 * 문법은 맞지만 원하는 출력이 나오지 않는 오류.
@@ -1245,6 +1303,7 @@ run;
 #### **[ 개념 ]**
 * 기본 보고서(List report) 생성
 * 변수 선택/순서/라벨/합계 등 커스터마이징 가능
+* 기본적으로 obs 번호를 좌측에 출력함
 
 #### **[ 주요 옵션 ]**
 * VAR: 출력 변수 선택/순서 조정
@@ -1440,6 +1499,7 @@ run;
 
 #### [ PROC FREQ : 범주형 데이터 요약(빈도표) ]
 * 범주형 변수의 빈도, 비율, 크로스탭(교차표) 생성
+* 숫자형, 문자형 변수 모두 가능
 * 데이터 검증용으로 많이 씀(고유값 확인, 이상값 탐지)
 * 1-way(일원) / 2-way(이원) / n-way 교차표 가능
 * 연산이 매우 빠름
@@ -1461,7 +1521,7 @@ run;
   * proc freq; run; : data= 설정 안할 경우, 바로 최근에 생성된 data를 기준으로 보여줌
   
 ```
-/* (일원빈도표) 모든 변수에 대해 각각 빈도, 비율, 누적빈도, 누적비율 표 생성 
+/* (일원빈도표) 모든 변수(숫자형, 문자형 모두)에 대해 각각 빈도, 비율, 누적빈도, 누적비율 표 생성 
               만약 몇몇 변수만 보고 싶다면 table A B; 설정 */
  proc freq data=sashelp.class;
         run;
@@ -1576,27 +1636,42 @@ ods output close;
 ### 4-3. Enhance Reports (PROC FORMAT, Titles, Footnotes, SAS System reporting options 사용)
 
 #### 사용자 정의 포맷 (PROC FORMAT)
+* format : 출력형태 / informat : 입력형태
 * 데이터 값 자체를 바꾸는 것이 아니라 '보여주는 형태'만 바꾸는 도구
 * 실제 값은 그대로 유지되며, 출력, 보고서, 라벨링에서 자주 사용
+* format name은 숫자나 period(.)로 끝나면 안되며, 문자형 포맷은 이름 앞에 $ 붙이기
+* format 정의 시, 숫자는 숫자끼리 문자는 문자끼리만 정할 수 있음
+* low(문자형일 때 missing 포함) / high / other(숫자형일 때 missing 포함)
 * CNTLIN = 옵션 (연습 충분히 하기)
-  * 포맷을 일일이 value로 작성하는 대신 테이블 형태로 포맷 생셩(대량 코드, 범주가 많을 때 사용)
+  * 포맷을 일일이 value로 작성하는 대신 테이블 형태로 포맷 생성(대량 코드, 범주가 많을 때 사용)
   * 데이터셋에는 fmtname / type / start / end / label 설정 필요
   * HLO='H' (High open) / 'L' (Low open) / 'O' (other)
-  * 추가학습 연속형 숫자
+
 ```
 * 문자형 포멧(value $) / 숫자 범위 포맷;
+* lib 설정 안하면 work.formats 에 저장;
+libname formtlib 'D:/Users/SAS/formats/lib';
 
-proc format;
+proc format lib=formtlib;
   value $gender 'M'='Male' 'F'='Female';
   value agegrp low-12 = "Child" 
-               13-19 = "Teenager"
-               20-high = "Adult" ;
+               12<-19 = "Teenager"
+               19<-high = "Adult" 
+               other = 'Unknown';
 run;
 
 proc print data=sashelp.class;
   format sex $gender. 
          age agegrp.;
 run;
+
+* 저장된 format들 확인하기. fmtlib 옵션 기억하기;
+* 기본저장 라이브러리는 work.formats;
+proc format lib=work.formats fmtlib; run; 
+
+* 저장된 format 지우는 법;
+proc catalog catalog=work.formats; delete agegrp.format; run;
+
 ```
 ```
 * cntlin;
@@ -1621,6 +1696,7 @@ run;
 ```
 #### 라벨(label)과 헤더 조정
 * LABEL은 변수 자체의 설명(컬럼 헤더)을 바꾸는 기능
+* LABEL의 최대 길이 : 32,767
 * 보고서, PRINT, MEANS, REPORT 등에서 표에 표시되는 이름만 변경
 * PROC PRINT에서 LABEL 표시하려면 반드시 옵션 label; 필요
   * 옵션에서 label split='구분자'로 긴 라벨은 줄바꿈 가능
@@ -1662,7 +1738,7 @@ options nodate nonumber linesize=120 pagesize=40;
 
 title "Custom Report Settings";
 
-proc print data=sashelp.cars (obs=10) label;
+proc print data=sashelp.cars (obs=10) label double; * double : 출력 줄 사이에 한줄 더 띄우기;
 run;
 
 title;
@@ -1798,4 +1874,31 @@ libname certxl xlsx 'd:/stock.xlsx';
 data korea;
   set certxl.'한국 주식'n;
 run;
+```
+
+### 오답노트
+* DROP 문(drop statement)은 DATA step의 ‘마지막’에 적용된다 -> 조건에서 해당 var 사용 가능
+```
+data WORK.MALES WORK.FEMALES(drop=age); 
+  set WORK.CLASS; 
+  drop gender; 
+  if Gender="M" then output WORK.MALES; 
+  else if Gender="F" then output WORK.FEMALES; 
+run;
+```
+* LENGTH는 실제 저장 용량을, FORMAT은 출력 표시만 결정하며, LENGTH가 먼저 결정된 뒤 MERGE 시 첫 번째 데이터셋의 FORMAT이 적용된다.
+```
+data employee;
+	format name $char10.;
+run;
+data sales;
+	format name $char15.;
+run;
+data both;
+   length name $30.;
+   merge employee sales ; 
+   by name; 
+run;
+
+* both의 name은 길이는 30이며, format은 $char10. ;
 ```
